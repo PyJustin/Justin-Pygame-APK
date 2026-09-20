@@ -1,7 +1,7 @@
 name: Build Native Pygame APK
 
 on:
-  # Triggers the build every time you push to the main branch
+  # Triggers the build every time you push to the main branch#
   push:
     branches: [ main, master ]
   # Allows you to manually trigger the build from the Actions tab
