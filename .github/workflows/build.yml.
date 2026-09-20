@@ -1,0 +1,59 @@
+name: Build Native Pygame APK
+
+on:
+  # Triggers the build every time you push to the main branch
+  push:
+    branches: [ main, master ]
+  # Allows you to manually trigger the build from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-level: '3.11'
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ccache \
+            git \
+            libffi-dev \
+            libssl-dev \
+            libsdl2-dev \
+            libsdl2-image-dev \
+            libsdl2-mixer-dev \
+            libsdl2-ttf-dev \
+            libportmidi-dev \
+            unzip \
+            zip \
+            zlib1g-dev \
+            openjdk-17-jdk
+
+      - name: Install Buildozer and Cython
+        run: |
+          pip install --upgrade pip
+          pip install buildozer cython virtualenv
+
+      - name: Build APK with Buildozer
+        run: |
+          # The 'yes |' automatically accepts the Android SDK licenses during compilation
+          yes | buildozer -v android debug
+        env:
+          # Targets a modern Android API level
+          ANDROID_API: 34
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pygame-native-apk
+          path: bin/*.apk
