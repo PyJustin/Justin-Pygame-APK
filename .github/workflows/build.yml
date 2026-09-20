@@ -39,11 +39,10 @@ jobs:
             zlib1g-dev \
             openjdk-17-jdk
 
-         - name: Install Buildozer and Cython
+      - name: Install Buildozer and Cython
         run: |
           pip install --upgrade pip
           pip install buildozer "cython<3.0.0" virtualenv
-
 
       - name: Build APK with Buildozer
         run: |
@@ -58,4 +57,5 @@ jobs:
         with:
           name: pygame-native-apk
           path: bin/*.apk
+
 
