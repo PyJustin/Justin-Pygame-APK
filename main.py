@@ -11,7 +11,8 @@
 import os
 import pathlib
 import pygame
-pygame.init()
+pygame.display.init()
+pygame.font.init() 
 
 pygame.display.set_caption("Hello Justin")  # <<-- will go into 'Title' of the PygBag generated .HTML file.
 
