@@ -52,23 +52,27 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython
 
-      - name: Pre-Accept Android SDK Licenses & Compile
+      - name: Provision Legacy Android SDK Tools & Compile
         run: |
-          # Create Android SDK structure and inject accepted licenses hashes manually
-          # This tells the SDK tools that all licenses are already explicitly approved.
-          mkdir -p $HOME/.android
-          touch $HOME/.android/repositories.cfg
-
-          # Map out the exact license paths Buildozer targets
+          # 1. Manually construct the precise legacy paths Buildozer searches for
           SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
-          mkdir -p "$SDK_DIR/licenses"
+          mkdir -p "$SDK_DIR"
+          cd "$SDK_DIR"
 
-          # Standard hashes for Android SDK, Preview, NDK, and CMake licenses
+          # 2. Download the last official legacy tools zip that uses the 'tools/bin/sdkmanager' structure
+          curl -L -o sdk-tools.zip https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip
+          unzip -q sdk-tools.zip
+          rm sdk-tools.zip
+
+          # 3. Create structural directories and manually pre-accept Google licenses
+          mkdir -p "$SDK_DIR/licenses"
           echo -e "8933bad161d7a78a6f3542316664d6c2813e1130\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$SDK_DIR/licenses/android-sdk-license"
           echo -e "84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f291d" > "$SDK_DIR/licenses/android-sdk-preview-license"
-          echo -e "d56f5187479451eabf01fb74313026e2281db3ef" > "$SDK_DIR/licenses/android-googletv-license"
+          
+          # Return to the project root directory
+          cd $GITHUB_WORKSPACE
 
-          # Run compilation completely non-interactively
+          # 4. Trigger Buildozer natively now that its path dependencies exist
           buildozer -v android debug
         env:
           BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
@@ -79,5 +83,4 @@ jobs:
         with:
           name: android-apk
           path: .bin/*.apk
-
 
