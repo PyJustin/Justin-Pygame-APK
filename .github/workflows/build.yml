@@ -52,43 +52,31 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython
 
-      - name: Provision Modern Android SDK Tools & Compile
+      - name: Link Native Android SDK & Compile
         run: |
-          # 1. Map out the official structural path modern sdkmanagers expect
+          # 1. Establish the clean destination folder Buildozer looks for
           SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
-          mkdir -p "$SDK_DIR/cmdline-tools"
-          cd "$SDK_DIR/cmdline-tools"
+          mkdir -p "$SDK_DIR"
 
-          # 2. Grab the modern Command-Line Tools archive compatible with Java 17
-          curl -L -o commandlinetools.zip https://google.com
-          unzip -q commandlinetools.zip
-          rm commandlinetools.zip
+          # 2. Safely accept the Android system framework licenses pre-installed on the runner
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-          # 3. Restructure to the standard Android requirement: cmdline-tools/latest/bin/...
-          mv cmdline-tools latest
-
-          # 4. Generate structural symmetry by creating a backwards-compatible symlink 
-          # so Buildozer can trace 'tools/bin/sdkmanager' cleanly to the Java 17 compiler.
+          # 3. Create structural symlinks making the runner's pre-configured tools discoverable by Buildozer
+          ln -s "$ANDROID_HOME/cmdline-tools" "$SDK_DIR/cmdline-tools"
+          ln -s "$ANDROID_HOME/platform-tools" "$SDK_DIR/platform-tools"
+          
+          # 4. Buildozer fallback compatibility link: map standard legacy path to modern binary directory
           mkdir -p "$SDK_DIR/tools"
-          ln -s "$SDK_DIR/cmdline-tools/latest/bin" "$SDK_DIR/tools/bin"
+          ln -s "$ANDROID_HOME/cmdline-tools/latest/bin" "$SDK_DIR/tools/bin"
 
-          # 5. Pre-accept licenses seamlessly in the root directories
-          mkdir -p "$SDK_DIR/licenses"
-          echo -e "8933bad161d7a78a6f3542316664d6c2813e1130\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$SDK_DIR/licenses/android-sdk-license"
-          echo -e "84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f291d" > "$SDK_DIR/licenses/android-sdk-preview-license"
-
-          # Return to workspace context and execute
-          cd $GITHUB_WORKSPACE
+          # 5. Execute Buildozer build
           buildozer -v android debug
         env:
           BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
           BUILDOZER_WARN_ON_ROOT: 0
-          # Instruct modern tools to ignore outdated JDK compatibility prompts
-          SKIP_JDK_VERSION_CHECK: 1
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
           path: .bin/*.apk
-
