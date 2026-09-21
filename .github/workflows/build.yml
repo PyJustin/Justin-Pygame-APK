@@ -75,8 +75,14 @@ jobs:
           BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
           BUILDOZER_WARN_ON_ROOT: 0
 
-      - name: Upload APK artifact
+
+        - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: .bin/*.apk
+          # This tells GitHub to look in both .bin/ and bin/ directories for any .apk files
+          path: |
+            .bin/*.apk
+            bin/*.apk
+          if-no-files-found: error # This will force the build to explicitly show an error if it can't find the file
+
