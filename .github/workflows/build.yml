@@ -54,20 +54,18 @@ jobs:
 
       - name: Accept Licenses & Build with Buildozer
         run: |
-          # 1. Accept all android licenses natively on the runner
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          # 1. Dynamically append the Android SDK tools onto the PATH without wiping existing system binaries
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
 
-          # 2. Tell buildozer exactly where the pre-installed SDK & NDK are.
-          # This forces Buildozer to bypass its own internal downloader scripts entirely.
+          # 2. Accept all Android licenses seamlessly using the standard toolset
+          yes | sdkmanager --licenses
+
+          # 3. Tell Buildozer exactly where to find the pre-installed SDK via environmental parameters
+          export ANDROID_SDK_HOME="$ANDROID_HOME"
+
+          # 4. Trigger Buildozer natively
           buildozer -v android debug
         env:
           BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
           BUILDOZER_WARN_ON_ROOT: 0
-          # Re-route Buildozer targeting parameters to GitHub Actions native installations
-          PATH: ${{ env.ANDROID_HOME }}/cmdline-tools/latest/bin:${{ env.ANDROID_HOME }}/platform-tools:${{ env.PATH }}
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: .bin/*.apk
