@@ -52,18 +52,20 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython
 
-      - name: Pre-seed Buildozer Licenses & Compile
+      - name: Inject Native SDK Paths & Compile
         run: |
-          # 1. Pre-create the strict directory layout that Buildozer will provision locally
-          BUILDOZER_SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
-          mkdir -p "$BUILDOZER_SDK_DIR/licenses"
+          # 1. Automatically accept all licenses on the runner's native Android framework
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-          # 2. Directly seed Google's required Android SDK licence keys into Buildozer's path
-          # This forces its internal sdkmanager execution to see licenses as pre-approved
-          echo -e "8933bad161d7a78a6f3542316664d6c2813e1130\n24333f8a63b6825ea9c5514f83c2829b004d1fee\ned0c0a5b17b6dd9cc65cf2d99d48d3f614c00d3b" > "$BUILDOZER_SDK_DIR/licenses/android-sdk-license"
-          echo -e "84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f291d" > "$BUILDOZER_SDK_DIR/licenses/android-sdk-preview-license"
-          
-          # 3. Trigger the default Buildozer compilation sequence smoothly
+          # 2. Force append configuration variables onto your buildozer.spec file dynamically.
+          # This tells Buildozer to reuse GitHub's robust pre-configured Android SDK and NDK,
+          # completely disabling its custom internal automated downloader and avoiding path errors.
+          if [ -f "buildozer.spec" ]; then
+            sed -i "s|#android.sdk_path =|android.sdk_path = $ANDROID_HOME|g" buildozer.spec
+            sed -i "s|#android.ndk_path =|android.ndk_path = $ANDROID_NDK_HOME|g" buildozer.spec
+          fi
+
+          # 3. Trigger compilation using the runner's system resources
           buildozer -v android debug
         env:
           BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
@@ -74,4 +76,3 @@ jobs:
         with:
           name: android-apk
           path: .bin/*.apk
-
