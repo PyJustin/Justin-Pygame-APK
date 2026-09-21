@@ -50,9 +50,8 @@ version = 0.1
 # Buildozer's built-in internal pygame recipe script hasn't been updated to handle the folder structures of newer Python versions (3.11+).
 # Explicitly force both the app python and the build python to match.
 # 1. Activate Buildozer's mobile compiler recipe.
-requirements = python3==3.10.12, hostpython3==3.10.12, pygame
+requirements = python3, pygame-ce
 # 2. Tell pip to swap standard pygame out for pygame-ce right at compilation time.
-pip_requirements = pygame-ce
 
 # With "android.bootstrap = sdl2"  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
 android.bootstrap = sdl2
@@ -81,10 +80,8 @@ orientation = landscape
 # author = © Copyright Info
 
 # change the major version of python used by the app
-osx.python_version = 3
 
 # Kivy version to use
-osx.kivy_version = 1.9.1
 
 #
 # Android specific
