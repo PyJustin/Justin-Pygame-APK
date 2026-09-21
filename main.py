@@ -11,8 +11,9 @@
 import os
 import pathlib
 import pygame
+import pygame.freetype  # for Fonts
 pygame.display.init()
-pygame.font.init() 
+pygame.freetype.init()  # This uses a completely different, safer C path than init.font                                                           than pygame.font.init() 
 
 pygame.display.set_caption("Hello Justin")  # <<-- will go into 'Title' of the PygBag generated .HTML file.
 
@@ -57,13 +58,15 @@ while True:
 
     clock.tick(250)  # set the FPS rate; this must be here within the "while True" loop.
 
-    font = pygame.font.Font(os.path.abspath(".")+'/Lemon Days.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
+    font = pygame.freetype.Font('Lemon Days.ttf', 85) # freetype does NOT need os.path.abspath for Android.
+    # font = pygame.font.Font(os.path.abspath(".")+'/Lemon Days.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
     #font = pygame.font.Font('C:\PYGAME\My Games\Hello\Lemon Days.ttf', 36)  #  <<-- for Nuitka & Python Interpreter.
     hardware_surface = font.render('Welcome to Pygame, Justin !', True, (GOLD))
     screen.blit(hardware_surface, (10, 100))
     #screen.blit(text_surface, (width // 2 - text_surface.get_width() // 2, 100)) # 100 is the Y co-ordinate
 
-    font = pygame.font.Font(os.path.abspath(".")+'/Skincake.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
+    font = pygame.freetype.Font('Skincake.ttf', 85) # freetype does NOT need os.path.abspath for Android.
+    #font = pygame.font.Font(os.path.abspath(".")+'/Skincake.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
     #font = pygame.font.Font('C:\PYGAME\My Games\Hello\Skincake.ttf', 38) #  <<-- for Nuitka & Python Interpreter.
     hardware_surface = font.render(f'FPS =  {round(clock.get_fps(), 1)}', True, (RED)) # "1" means one decimal place
     screen.blit(hardware_surface, (10, 250))  # copies the surface object to the screen.
