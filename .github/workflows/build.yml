@@ -52,28 +52,19 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython
 
-      - name: Link Native Android SDK & Compile
+      - name: Accept Licenses & Build with Buildozer
         run: |
-          # 1. Establish the clean destination folder Buildozer looks for
-          SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
-          mkdir -p "$SDK_DIR"
-
-          # 2. Safely accept the Android system framework licenses pre-installed on the runner
+          # 1. Accept all android licenses natively on the runner
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-          # 3. Create structural symlinks making the runner's pre-configured tools discoverable by Buildozer
-          ln -s "$ANDROID_HOME/cmdline-tools" "$SDK_DIR/cmdline-tools"
-          ln -s "$ANDROID_HOME/platform-tools" "$SDK_DIR/platform-tools"
-          
-          # 4. Buildozer fallback compatibility link: map standard legacy path to modern binary directory
-          mkdir -p "$SDK_DIR/tools"
-          ln -s "$ANDROID_HOME/cmdline-tools/latest/bin" "$SDK_DIR/tools/bin"
-
-          # 5. Execute Buildozer build
+          # 2. Tell buildozer exactly where the pre-installed SDK & NDK are.
+          # This forces Buildozer to bypass its own internal downloader scripts entirely.
           buildozer -v android debug
         env:
           BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
           BUILDOZER_WARN_ON_ROOT: 0
+          # Re-route Buildozer targeting parameters to GitHub Actions native installations
+          PATH: ${{ env.ANDROID_HOME }}/cmdline-tools/latest/bin:${{ env.ANDROID_HOME }}/platform-tools:${{ env.PATH }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
