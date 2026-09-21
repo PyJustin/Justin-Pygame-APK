@@ -52,20 +52,26 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython
 
-      - name: Accept Licenses & Build with Buildozer
+      - name: Pre-seed Buildozer Licenses & Compile
         run: |
-          # 1. Dynamically append the Android SDK tools onto the PATH without wiping existing system binaries
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          # 1. Pre-create the strict directory layout that Buildozer will provision locally
+          BUILDOZER_SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
+          mkdir -p "$BUILDOZER_SDK_DIR/licenses"
 
-          # 2. Accept all Android licenses seamlessly using the standard toolset
-          yes | sdkmanager --licenses
-
-          # 3. Tell Buildozer exactly where to find the pre-installed SDK via environmental parameters
-          export ANDROID_SDK_HOME="$ANDROID_HOME"
-
-          # 4. Trigger Buildozer natively
+          # 2. Directly seed Google's required Android SDK licence keys into Buildozer's path
+          # This forces its internal sdkmanager execution to see licenses as pre-approved
+          echo -e "8933bad161d7a78a6f3542316664d6c2813e1130\n24333f8a63b6825ea9c5514f83c2829b004d1fee\ned0c0a5b17b6dd9cc65cf2d99d48d3f614c00d3b" > "$BUILDOZER_SDK_DIR/licenses/android-sdk-license"
+          echo -e "84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f291d" > "$BUILDOZER_SDK_DIR/licenses/android-sdk-preview-license"
+          
+          # 3. Trigger the default Buildozer compilation sequence smoothly
           buildozer -v android debug
         env:
           BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
           BUILDOZER_WARN_ON_ROOT: 0
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: .bin/*.apk
 
