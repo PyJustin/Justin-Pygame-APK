@@ -54,35 +54,26 @@ jobs:
 
       - name: Link Legacy SDK Paths & Compile
         run: |
-          # 1. Accept all global licenses natively on the runner
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-          # 2. Fix Buildozer's hardcoded legacy requirement:
-          # Create a virtual "tools/bin" directory tree directly inside the runner's SDK folder
-          # and link it back to the modern, functioning Java 17 sdkmanager binary.
           sudo mkdir -p "$ANDROID_HOME/tools/bin"
           sudo ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_HOME/tools/bin/sdkmanager"
 
-          # 3. Explicitly configure your local buildozer.spec to look at this native environment path
           if [ -f "buildozer.spec" ]; then
             sed -i "s|#android.sdk_path =|android.sdk_path = $ANDROID_HOME|g" buildozer.spec
             sed -i "s|#android.ndk_path =|android.ndk_path = $ANDROID_NDK_HOME|g" buildozer.spec
           fi
 
-          # 4. Execute Buildozer build natively
           buildozer -v android debug
         env:
           BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
           BUILDOZER_WARN_ON_ROOT: 0
 
-
-        - name: Upload APK artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          # This tells GitHub to look in both .bin/ and bin/ directories for any .apk files
           path: |
             .bin/*.apk
             bin/*.apk
-          if-no-files-found: error # This will force the build to explicitly show an error if it can't find the file
-
+          if-no-files-found: error
