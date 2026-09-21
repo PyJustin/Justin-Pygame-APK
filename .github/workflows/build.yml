@@ -1,61 +1,68 @@
-name: Build Native Pygame APK
+name: Build Android App with Buildozer
 
 on:
-  # Triggers the build every time you push to the main branch
   push:
     branches: [ main, master ]
-  # Allows you to manually trigger the build from the Actions tab
-  workflow_dispatch:
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows you to trigger the build manually
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python
+        uses: actions/ Pip and dependencies
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-node: '3.10' # Adjust to your required Python version
 
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
-            ccache \
+            libtool \
+            autoconf \
+            automake \
+            pkg-config \
+            gawk \
             git \
-            libffi-dev \
-            libssl-dev \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            libportmidi-dev \
+            ccache \
             unzip \
             zip \
-            zlib1g-dev \
-            openjdk-17-jdk
+            bzip2 \
+            libffi-dev \
+            libssl-dev \
+            libltdl-dev
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Install Buildozer and Cython
         run: |
           pip install --upgrade pip
-          pip install buildozer "cython<3.0.0" virtualenv
+          pip install buildozer cython
 
-      - name: Build APK with Buildozer
+      - name: Build with Buildozer
         run: |
-          # The 'yes |' automatically accepts the Android SDK licenses during compilation
-          yes | buildozer -v android debug
+          # The '--android' flag builds the APK. Change 'debug' to 'release' if needed.
+          buildozer -v android debug
         env:
-          # Targets a modern Android API level
-          ANDROID_API: 34
+          # This accepts the Android SDK/NDK licenses automatically during the build
+          BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
 
-      - name: Upload APK Artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pygame-native-apk
-          path: bin/*.apk
+          name: android-apk
+          path: .bin/*.apk
 
 
