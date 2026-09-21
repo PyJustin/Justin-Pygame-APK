@@ -50,7 +50,7 @@ version = 0.1
 # Buildozer's built-in internal pygame recipe script hasn't been updated to handle the folder structures of newer Python versions (3.11+).
 # Explicitly force both the app python and the build python to match.
 # 1. Activate Buildozer's mobile compiler recipe.
-requirements = python3, pygame-ce
+requirements = python3, pygame-ce, sdl2, sdl2_image, sdl2_mixer, sdl2_ttf
 # 2. Tell pip to swap standard pygame out for pygame-ce right at compilation time.
 
 # With "android.bootstrap = sdl2"  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
@@ -298,7 +298,7 @@ android.ndk = 25b
 
 # (list) The Android archs to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
 # In past, was `android.arch` as we weren't supporting builds for multiple archs at the same time.
-android.archs = armeabi-v7a, arm64-v8a
+android.archs = arm64-v8a
 
 # (int) overrides automatic versionCode computation (used in build.gradle)
 # this is not the same as app version and should only be edited if you know what you're doing
