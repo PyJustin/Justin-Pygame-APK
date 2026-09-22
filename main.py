@@ -9,15 +9,6 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 import os
-import traceback
-# Catch ANY crash before the game even starts and write it out
-def handle_exception(exc_type, exc_value, exc_traceback):
-    with open("crash_log.txt", "w") as f:
-        traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
-    sys.__excepthook__(exc_type, exc_value, exc_traceback)
-
-sys.excepthook = handle_exception
-
 import pygame
 import pathlib
 
@@ -41,8 +32,12 @@ print(f"Script Path: {path}")
 base_width = 1280
 base_height = 1280
 
-# the following is the modern way of using the GPU and setting the screen size.
-screen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED | pygame.DOUBLEBUF, vsync=1)
+# For Android phone use the following for Full Screen:-
+sreen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED)
+
+#  For DESKTOP use the following as the modern way of using the GPU and setting the screen size;
+#  . . . but do NOT use for Mobile.
+# screen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED | pygame.DOUBLEBUF, vsync=1)
 
 GOLD = (255, 215, 0)
 RED = (255, 0, 0)
@@ -70,15 +65,13 @@ while True:
 
     clock.tick(250)  # set the FPS rate; this must be here within the "while True" loop.
 
-    font = pygame.freetype.Font('Lemon Days.ttf', 85) # freetype does NOT need os.path.abspath for Android.
-    # font = pygame.font.Font(os.path.abspath(".")+'/Lemon Days.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
+    font = pygame.font.Font(os.path.abspath(".")+'/Lemon Days.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
     #font = pygame.font.Font('C:\PYGAME\My Games\Hello\Lemon Days.ttf', 36)  #  <<-- for Nuitka & Python Interpreter.
     hardware_surface = font.render('Welcome to Pygame, Justin !', True, (GOLD))
     screen.blit(hardware_surface, (10, 100))
     #screen.blit(text_surface, (width // 2 - text_surface.get_width() // 2, 100)) # 100 is the Y co-ordinate
 
-    font = pygame.freetype.Font('Skincake.ttf', 85) # freetype does NOT need os.path.abspath for Android.
-    #font = pygame.font.Font(os.path.abspath(".")+'/Skincake.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
+    font = pygame.font.Font(os.path.abspath(".")+'/Skincake.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
     #font = pygame.font.Font('C:\PYGAME\My Games\Hello\Skincake.ttf', 38) #  <<-- for Nuitka & Python Interpreter.
     hardware_surface = font.render(f'FPS =  {round(clock.get_fps(), 1)}', True, (RED)) # "1" means one decimal place
     screen.blit(hardware_surface, (10, 250))  # copies the surface object to the screen.
