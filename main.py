@@ -33,7 +33,7 @@ base_width = 1280
 base_height = 1280
 
 # For Android phone use the following for Full Screen:-
-sreen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED)
+screen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED)
 
 #  For DESKTOP use the following as the modern way of using the GPU and setting the screen size;
 #  . . . but do NOT use for Mobile.
