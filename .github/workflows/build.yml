@@ -15,9 +15,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Clean Buildozer cache
-      run: buildozer appclean
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -54,6 +51,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install buildozer cython
 
+    - name: Clean Buildozer cache
+      run: buildozer appclean
+
     - name: Link Legacy SDK Paths & Compile
       run: |
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
@@ -79,4 +79,3 @@ jobs:
           .bin/*.apk
           bin/*.apk
         if-no-files-found: error
-
