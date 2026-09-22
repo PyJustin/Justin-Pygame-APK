@@ -1,5 +1,8 @@
 name: Build Android App with Buildozer
 
+  - name: Clean Buildozer cache
+    run: buildozer appclean
+
 on:
   push:
     branches: [ main, master ]
