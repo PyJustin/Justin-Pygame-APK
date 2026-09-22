@@ -9,6 +9,15 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 import os
+import traceback
+# Catch ANY crash before the game even starts and write it out
+def handle_exception(exc_type, exc_value, exc_traceback):
+    with open("crash_log.txt", "w") as f:
+        traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
+    sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+sys.excepthook = handle_exception
+
 import pygame
 import pathlib
 
