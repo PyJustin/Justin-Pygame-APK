@@ -42,19 +42,12 @@ version = 0.1
 # version.filename = %(source.dir)s/main.py
 
 # (list) Application requirements
-# comma separated e.g. requirements = sqlite3,kivy
 
-# Kivy isn't needed for pygame but without Kivy, you need to tell Buildozer to use sdl2  to launch your app.
-#  On your "Requirements ="  line  do NOT  include sdl2, sdl2_image, sdl2_mixer, or sdl2_ttf 
-# Use Python 3.10 which matches the older  Buildozer folder structure perfectly and allows pygame-ce to compile flawlessly.
-# Buildozer's built-in internal pygame recipe script hasn't been updated to handle the folder structures of newer Python versions (3.11+).
-# Explicitly force both the app python and the build python to match.
-# 1. Activate Buildozer's mobile compiler recipe.
-# 1. Keep requirements simple. pygame-ce handles the SDL2 libraries automatically!
-requirements = python3, pygame-ce, pyjnius, sdl2, sdl2_image, sdl2_mixer, sdl2_ttf
-# 2. Tell pip to swap standard pygame out for pygame-ce right at compilation time.
+# 1. Keep requirements simple. 
+#Pygame-ce handles the SDL2 libraries automatically else if you list them, it may get the Desktop versions instead of the Mobile versions !
+requirements = python3, pygame-ce, pyjnius
 
-# Keep this line:  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
+# Keep this line -  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
 android.bootstrap = sdl2
 
 # (str) Custom source folders for requirements
@@ -298,8 +291,9 @@ android.ndk = 25b
 #android.copy_libs = 1
 
 # (list) The Android archs to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-# In past, was `android.arch` as we weren't supporting builds for multiple archs at the same time.
+#  S26 Ultra uses ONLY  arm64-v8a  and no other.
 android.archs = arm64-v8a
+
 
 # (int) overrides automatic versionCode computation (used in build.gradle)
 # this is not the same as app version and should only be edited if you know what you're doing
