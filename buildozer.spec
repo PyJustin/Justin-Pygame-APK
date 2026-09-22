@@ -51,7 +51,7 @@ version = 0.1
 # Explicitly force both the app python and the build python to match.
 # 1. Activate Buildozer's mobile compiler recipe.
 # 1. Keep requirements simple. pygame-ce handles the SDL2 libraries automatically!
-requirements = python3, pygame-ce
+requirements = python3, pygame-ce, pyjnius, sdl2, sdl2_image, sdl2_mixer, sdl2_ttf
 # 2. Tell pip to swap standard pygame out for pygame-ce right at compilation time.
 
 # Keep this line:  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
