@@ -9,11 +9,14 @@
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
 import os
-import pathlib
 import pygame
-import pygame.freetype  # for Fonts
-pygame.display.init()
-pygame.freetype.init()  # This uses a completely different, safer C path than init.font                                                           than pygame.font.init() 
+import pathlib
+
+# 1. Force the audio driver to do nothing, else game will crash when not using audio .
+os.environ["SDL_AUDIODRIVER"] = "dummy"
+
+# 2. Safely initialize everything (including display and freetype for fonts)
+pygame.init()
 
 pygame.display.set_caption("Hello Justin")  # <<-- will go into 'Title' of the PygBag generated .HTML file.
 
