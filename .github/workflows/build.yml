@@ -57,6 +57,30 @@ jobs:
         rm -rf ~/.buildozer/
         rm -rf ~/.cache/pip
 
+    - name: Create Custom Pygame-CE Build Recipe
+      run: |
+        # Generate the required nested directories
+        mkdir -p custom_recipes/pygame
+        
+        # Write the python-for-android recipe directly into the runner environment
+        cat << 'EOF' > custom_recipes/pygame/__init__.py
+        from pythonforandroid.recipe import CompiledComponentsPythonRecipe
+
+        class PygameCERecipe(CompiledComponentsPythonRecipe):
+            version = 'main'
+            url = 'git+https://github.com'
+            
+            depends = ['sdl2', 'sdl2_image', 'sdl2_mixer', 'sdl2_ttf', 'jpeg', 'png', 'python3']
+            call_hostpython_via_targetpython = False
+
+            def get_recipe_env(self, arch):
+                env = super().get_recipe_env(arch)
+                env['USE_X11'] = '0'
+                return env
+
+        recipe = PygameCERecipe()
+        EOF
+
     - name: Link Legacy SDK Paths & Compile
       run: |
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
@@ -71,10 +95,8 @@ jobs:
         
         export APP_ANDROID_ARCHS="arm64-v8a"
         
-        # Completely clean previous distribution targets to erase pre-existing binaries
+        # Clean previous targets and compile using the newly generated local recipe
         buildozer android clean
-        
-        # Proceed with the fresh, isolated target build
         buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
