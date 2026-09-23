@@ -1,3 +1,4 @@
+
 #-------------------------------------------------------------------------------
 # Name:        module1
 # Purpose:
@@ -7,10 +8,22 @@
 # Created:     17/07/2025
 # Copyright:   (c) badow 2025
 # Licence:     <your licence>
-#-------------------------------------------------------------------------------
-import os
+
+# Catch ANY crash before the game even starts and write it out ---------------------------
+import sys
+import traceback
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    with open("crash_log.txt", "w") as f:
+        traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
+    sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+sys.excepthook = handle_exception
+#-------------------------------------------------------------------------------------------------------------
+
 import pygame
 import pathlib
+import os
 
 # 1. Force the audio driver to do nothing, else game will crash when not using audio .
 os.environ["SDL_AUDIODRIVER"] = "dummy"
