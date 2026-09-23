@@ -57,12 +57,11 @@ jobs:
         rm -rf ~/.buildozer/
         rm -rf ~/.cache/pip
 
+    # This creates the custom mobile compilation recipe for PYGAME-CE
     - name: Create Custom Pygame-CE Build Recipe
       run: |
-        # Generate the required nested directories
         mkdir -p custom_recipes/pygame
         
-        # Write the python-for-android recipe directly into the runner environment
         cat << 'EOF' > custom_recipes/pygame/__init__.py
         from pythonforandroid.recipe import CompiledComponentsPythonRecipe
 
@@ -77,7 +76,6 @@ jobs:
                 env = super().get_recipe_env(arch)
                 env['USE_X11'] = '0'
                 return env
-
         recipe = PygameCERecipe()
         EOF
 
@@ -95,8 +93,12 @@ jobs:
         
         export APP_ANDROID_ARCHS="arm64-v8a"
         
-        # Clean previous targets and compile using the newly generated local recipe
-        buildozer android clean
+        # Safe Clean: Only runs clean if buildozer has a pre-existing platform directory
+        if [ -d ".buildozer/android/platform/python-for-android" ]; then
+          buildozer android clean
+        fi
+        
+        # Compile using the generated local recipe
         buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
@@ -110,3 +112,4 @@ jobs:
           .bin/*.apk
           bin/*.apk
         if-no-files-found: error
+
