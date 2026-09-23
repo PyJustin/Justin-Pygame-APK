@@ -1,4 +1,3 @@
-
 #-------------------------------------------------------------------------------
 # Name:        module1
 # Purpose:
@@ -8,17 +7,49 @@
 # Created:     17/07/2025
 # Copyright:   (c) badow 2025
 # Licence:     <your licence>
-
-# Catch ANY crash before the game even starts and write it out ---------------------------
+#
+#Here is a visual Crash Catcher .
+#With this snippet, if something goes wrong, the app won't just vanish
+#—it will freeze on a black screen with bright red text detailing the exact line and reason for the crash.
 import sys
 import traceback
+import os
 
 def handle_exception(exc_type, exc_value, exc_traceback):
-    with open("crash_log.txt", "w") as f:
-        traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
+    # Format the error message into strings
+    error_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+    error_text = "".join(error_lines)
+    
+    # Force initialize a basic window to show the error
+    import pygame
+    pygame.display.init()
+    pygame.font.init()
+    
+    screen = pygame.display.set_mode((800, 600))
+    font = pygame.font.SysFont("monospace", 15)
+    
+    # Loop and draw the error message line by line onto the screen
+    running = True
+    while running:
+        screen.fill((0, 0, 0)) # Black background
+        y = 10
+        for line in error_text.split('\n'):
+            # Render text in bright red so it stands out
+            text_surface = font.render(line, True, (255, 50, 50))
+            screen.blit(text_surface, (10, y))
+            y += 20
+        
+        pygame.display.flip()
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or event.type == pygame.MOUSEBUTTONDOWN:
+                running = False
+                
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
 sys.excepthook = handle_exception
+
+# Your actual game imports and code continue below...
 #-------------------------------------------------------------------------------------------------------------
 
 import pygame
