@@ -49,12 +49,16 @@ jobs:
     - name: Install Buildozer and Cython
       run: |
         python -m pip install --upgrade pip
-        pip install buildozer cython
+        # Added wheel to ensure pip builds/fetches dependencies with explicit targets
+        pip install buildozer cython wheel
 
-    - name: Force Purge Buildozer Cache Directory
+    - name: Force Purge Buildozer and Pip Caches
       run: |
+        # Wipe out local and home buildozer directories to guarantee no stale x86 objects persist
         rm -rf .buildozer/
         rm -rf ~/.buildozer/
+        # Flush the runner's pip cache so it doesn't redownload the x86_64 desktop wheel
+        rm -rf ~/.cache/pip
 
     - name: Link Legacy SDK Paths & Compile
       run: |
@@ -68,6 +72,8 @@ jobs:
           sed -i "s|#android.ndk_path =|android.ndk_path = $ANDROID_NDK_HOME|g" buildozer.spec
         fi
         
+        # Explicitly enforce the mobile ARM target architecture flag in the environment variables
+        export APP_ANDROID_ARCHS="arm64-v8a"
         buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
@@ -81,3 +87,4 @@ jobs:
           .bin/*.apk
           bin/*.apk
         if-no-files-found: error
+
