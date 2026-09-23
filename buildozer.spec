@@ -47,9 +47,6 @@ version = 0.1
 # python-for-android (p4a) does NOT have an official pygame-ce compilation recipe, so just specify 'pygame'.
 requirements = python3, pygame, pyjnius
 
-# 1. Point Buildozer to the local custom recipe folder we created in the .yml file in Github to fetch pygame-ce.
-p4a.local_recipes = ./custom_recipes
-
 # Keep this line -  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
 android.bootstrap = sdl2
 
