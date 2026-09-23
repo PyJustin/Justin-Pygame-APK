@@ -44,8 +44,11 @@ version = 0.1
 # (list) Application requirements
 
 # 1. Keep requirements simple. 
-#Pygame-ce handles the SDL2 libraries automatically else if you list them, it may get the Desktop versions instead of the Mobile versions !
-requirements = python3, pygame-ce, pyjnius
+# python-for-android (p4a) does NOT have an official pygame-ce compilation recipe, so just specify 'pygame'.
+requirements = python3, pygame, pyjnius
+
+# 1. Point Buildozer to the local custom recipe folder we created in the .yml file in Github to fetch pygame-ce.
+p4a.local_recipes = ./custom_recipes
 
 # Keep this line -  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
 android.bootstrap = sdl2
@@ -81,7 +84,8 @@ orientation = landscape
 # Android specific
 #
 
-# (bool) Indicate if the application should be fullscreen or not
+# (bool) Indicate if the application should be fullscreen (fullscreen = 1) or not (fullscreen = 0)
+# If your code says Full Screen then you MUST have fullscreen = 1 here
 fullscreen = 1
 
 # (string) Presplash background color (for android toolchain)
@@ -253,7 +257,7 @@ android.ndk = 25b
 # (str) launchMode to set for the main activity
 #android.manifest.launch_mode = standard
 
-# (str) screenOrientation to set for the main activity.
+
 # Valid values can be found at https://developer.android.com/guide/topics/manifest/activity-element
 #android.manifest.orientation = fullSensor
 
