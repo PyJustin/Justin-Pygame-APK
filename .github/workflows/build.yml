@@ -69,36 +69,9 @@ jobs:
         sudo mkdir -p "$ANDROID_HOME/tools/bin"
         sudo ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_HOME/tools/bin/sdkmanager"
         
-        # Write clean patching tool code without nested quote errors
-        cat << 'EOF' > patch_spec.py
-import os
-import configparser
-
-config = configparser.ConfigParser(allow_no_value=True, strict=False)
-config.read('buildozer.spec', encoding='utf-8')
-
-if not config.has_section('app'):
-    config.add_section('app')
-
-config.set('app', 'android.sdk_path', os.environ.get('ANDROID_HOME', ''))
-config.set('app', 'android.ndk_path', os.environ.get('ANDROID_NDK_HOME', ''))
-config.set('app', 'requirements', 'python3,pygame,pyjnius')
-config.set('app', 'p4a.branch', 'master')
-config.set('app', 'p4a.bootstrap', 'sdl2')
-
-if config.has_section('buildozer'):
-    config.remove_option('buildozer', 'p4a.bootstrap')
-    config.remove_option('buildozer', 'android.bootstrap')
-
-with open('buildozer.spec', 'w', encoding='utf-8') as f:
-    config.write(f)
-EOF
-
-        # Run the validation tool safely
-        python3 patch_spec.py
-        
-        # Build using specific target parameters to force standard C compilation routines
-        buildozer -v android debug --android.archs=arm64-v8a
+        # Enforce exact configurations safely via command line flags instead of modifying files
+        # This completely avoids duplicate token errors inside buildozer.spec across all sections
+        buildozer -v android debug --android.sdk_path="$ANDROID_HOME" --android.ndk_path="$ANDROID_NDK_HOME" --android.requirements="python3,pygame,pyjnius" --p4a.branch="master" --p4a.bootstrap="sdl2" --android.archs="arm64-v8a"
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
         BUILDOZER_WARN_ON_ROOT: 0
