@@ -65,26 +65,35 @@ jobs:
 
     - name: Link Legacy SDK Paths & Compile
       run: |
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
         sudo mkdir -p "$ANDROID_HOME/tools/bin"
         sudo ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_HOME/tools/bin/sdkmanager"
         
-        # Enforce exact configurations directly inside buildozer.spec
-        if [ -f "buildozer.spec" ]; then
-          sed -i "s|#android.sdk_path =|android.sdk_path = $ANDROID_HOME|g" buildozer.spec
-          sed -i "s|#android.ndk_path =|android.ndk_path = $ANDROID_NDK_HOME|g" buildozer.spec
-          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius|g' buildozer.spec
-          
-          # Cleanly overwrite the p4a branch definition line to prevent duplicate tokens
-          sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
+        # Rewrite buildozer.spec safely using a robust Python parsing script
+        python3 -c "
+import configparser
 
-          # Strip out any pre-existing bootstrap references completely to stop configuration duplicates
-          sed -i '/android.bootstrap/d' buildozer.spec
-          sed -i '/p4a.bootstrap/d' buildozer.spec
-          
-          # Append a single clean configuration rule under the [app] header
-          sed -i '/\[app\]/a p4a.bootstrap = sdl2' buildozer.spec
-        fi
+config = configparser.ConfigParser(allow_no_value=True, strict=False)
+config.read('buildozer.spec', encoding='utf-8')
+
+# Ensure sections exist and update values safely
+if not config.has_section('app'):
+    config.add_section('app')
+
+config.set('app', 'android.sdk_path', '$ANDROID_HOME')
+config.set('app', 'android.ndk_path', '$ANDROID_NDK_HOME')
+config.set('app', 'requirements', 'python3,pygame,pyjnius')
+config.set('app', 'p4a.branch', 'master')
+config.set('app', 'p4a.bootstrap', 'sdl2')
+
+# Remove duplicate properties from unintended sections if they exist
+if config.has_section('buildozer'):
+    config.remove_option('buildozer', 'p4a.bootstrap')
+    config.remove_option('buildozer', 'android.bootstrap')
+
+with open('buildozer.spec', 'w', encoding='utf-8') as f:
+    config.write(f)
+"
         
         # Build using specific target parameters to force standard C compilation routines
         buildozer -v android debug --android.archs=arm64-v8a
