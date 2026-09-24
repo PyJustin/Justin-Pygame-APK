@@ -45,7 +45,7 @@ version = 0.1
 
 # 1. Keep requirements simple. 
 # Keep Requirements to a minimum
-requirements = python3, pygame, pyjnius
+requirements = python3, pygame, pyjnius, hostpython3
 # the following will provide Buildozer with Pygame-CE
 p4a.extra_recipes = pygame-ce
 
