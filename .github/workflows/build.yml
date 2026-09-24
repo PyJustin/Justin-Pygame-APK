@@ -35,11 +35,10 @@ jobs:
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Trigger a strict deep clean of previous package compiles to purge old x86_64 caches
-        # This forces the builder to acknowledge the pygame-ce recipe and compile it from source for arm64
-        buildozer android appclean
+        # 4. Trigger a strict clean of previous package compiles to purge old cached target architectures
+        buildozer android clean
 
-        # 5. Run buildozer natively
+        # 5. Run buildozer natively to re-compile pygame-ce directly for arm64-v8a
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
