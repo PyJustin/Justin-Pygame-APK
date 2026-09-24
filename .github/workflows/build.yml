@@ -66,33 +66,23 @@ jobs:
 
     - name: Link Legacy SDK Paths & Compile
       run: |
-        # 1. Forcefully accept all global Android licenses
+        # Accept all global Android licenses natively
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
         
-        # 2. Re-create Buildozer's expected internal directory matrix
-        mkdir -p "$HOME/.buildozer/android/platform/android-sdk/tools/bin"
-        mkdir -p "$HOME/.buildozer/android/platform/android-sdk/build-tools/34.0.0"
-        
-        # 3. Symlink the tool utility runner to satisfy Buildozer's version verification
-        ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager"
-        
-        # 4. Clone the runner environment's pre-configured working build-tools directly into Buildozer's local check directory
-        cp -r $ANDROID_HOME/build-tools/* "$HOME/.buildozer/android/platform/android-sdk/build-tools/" || true
-        
-        # 5. Fallback link to ensure the 'aidl' execution wrapper exists specifically in the active directory path
-        if [ -f "/usr/bin/aidl" ]; then
-          ln -sf /usr/bin/aidl "$HOME/.buildozer/android/platform/android-sdk/build-tools/34.0.0/aidl"
-        fi
-        
-        # Build using explicit overrides
+        # Build using precise flags that tell buildozer exactly where to find the system binaries
         buildozer -v android debug \
           --android.sdk_path="$ANDROID_HOME" \
           --android.ndk_path="$ANDROID_NDK_HOME" \
           --android.requirements="python3,pygame,pyjnius" \
           --p4a.branch="master" \
           --p4a.bootstrap="sdl2" \
-          --android.archs="arm64-v8a"
+          --android.archs="arm64-v8a" \
+          --android.api=33 \
+          --android.ndk_api=31
       env:
+        # Expose crucial environment mappings directly to python-for-android
+        ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
         BUILDOZER_WARN_ON_ROOT: 0
 
