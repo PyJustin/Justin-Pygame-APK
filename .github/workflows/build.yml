@@ -69,31 +69,33 @@ jobs:
         sudo mkdir -p "$ANDROID_HOME/tools/bin"
         sudo ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_HOME/tools/bin/sdkmanager"
         
-        # Rewrite buildozer.spec safely using a robust Python parsing script
-        python3 -c "
+        # Write clean patching tool code without nested quote errors
+        cat << 'EOF' > patch_spec.py
+import os
 import configparser
 
 config = configparser.ConfigParser(allow_no_value=True, strict=False)
 config.read('buildozer.spec', encoding='utf-8')
 
-# Ensure sections exist and update values safely
 if not config.has_section('app'):
     config.add_section('app')
 
-config.set('app', 'android.sdk_path', '$ANDROID_HOME')
-config.set('app', 'android.ndk_path', '$ANDROID_NDK_HOME')
+config.set('app', 'android.sdk_path', os.environ.get('ANDROID_HOME', ''))
+config.set('app', 'android.ndk_path', os.environ.get('ANDROID_NDK_HOME', ''))
 config.set('app', 'requirements', 'python3,pygame,pyjnius')
 config.set('app', 'p4a.branch', 'master')
 config.set('app', 'p4a.bootstrap', 'sdl2')
 
-# Remove duplicate properties from unintended sections if they exist
 if config.has_section('buildozer'):
     config.remove_option('buildozer', 'p4a.bootstrap')
     config.remove_option('buildozer', 'android.bootstrap')
 
 with open('buildozer.spec', 'w', encoding='utf-8') as f:
     config.write(f)
-"
+EOF
+
+        # Run the validation tool safely
+        python3 patch_spec.py
         
         # Build using specific target parameters to force standard C compilation routines
         buildozer -v android debug --android.archs=arm64-v8a
