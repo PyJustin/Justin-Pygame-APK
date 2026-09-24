@@ -66,16 +66,25 @@ jobs:
 
     - name: Link Legacy SDK Paths & Compile
       run: |
-        # Accept licenses for the pre-installed system SDK
+        # 1. Forcefully accept all global Android licenses
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
         
-        # Pre-build Buildozer's internal expected directory structure to bypass the check
-        mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
+        # 2. Re-create Buildozer's expected internal directory matrix
+        mkdir -p "$HOME/.buildozer/android/platform/android-sdk/tools/bin"
+        mkdir -p "$HOME/.buildozer/android/platform/android-sdk/build-tools/34.0.0"
         
-        # Create a hard symbolic link so Buildozer finds the modern working sdkmanager where it expects it
+        # 3. Symlink the tool utility runner to satisfy Buildozer's version verification
         ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager"
         
-        # Build using specific target parameters to force standard C compilation routines
+        # 4. Clone the runner environment's pre-configured working build-tools directly into Buildozer's local check directory
+        cp -r $ANDROID_HOME/build-tools/* "$HOME/.buildozer/android/platform/android-sdk/build-tools/" || true
+        
+        # 5. Fallback link to ensure the 'aidl' execution wrapper exists specifically in the active directory path
+        if [ -f "/usr/bin/aidl" ]; then
+          ln -sf /usr/bin/aidl "$HOME/.buildozer/android/platform/android-sdk/build-tools/34.0.0/aidl"
+        fi
+        
+        # Build using explicit overrides
         buildozer -v android debug \
           --android.sdk_path="$ANDROID_HOME" \
           --android.ndk_path="$ANDROID_NDK_HOME" \
