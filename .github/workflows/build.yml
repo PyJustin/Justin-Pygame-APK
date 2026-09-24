@@ -23,19 +23,21 @@ jobs:
 
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear out previous build caches entirely to discard bad x86_64 architecture wheels
+        # 1. Clear out previous build caches entirely to ensure no desktop wheels are left
         rm -rf .buildozer/
         rm -rf bin/
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Forcefully inject pygame-ce and Python 3.11 straight into your spec requirements
+          # 2. Forcefully inject requirements and specify python 3.11 target stability
           sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame-ce,pyjnius|g' buildozer.spec
           
-          # 3. Enforce the master branch to pull stable recipes
+          # 3. Enforce the master branch to pull stable mobile recipes
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Run buildozer natively to re-compile your app clean for arm64-v8a from scratch
+        # 4. Use the PIP_NO_BINARY environment variable and --no-binary flag to block x86_64 desktop wheels
+        # This completely forces pip to compile pygame-ce for the target phone architecture (ARM64)
+        export PIP_NO_BINARY=:all:
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
