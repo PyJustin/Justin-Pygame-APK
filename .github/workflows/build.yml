@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Run natively inside the official Kivy Buildozer container image
     container:
       image: ghcr.io/kivy/buildozer:latest
 
@@ -21,15 +22,18 @@ jobs:
       run: |
         git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
 
-    - name: Build APK with Auto-License Acceptance
+    - name: Build APK with Stable Python & Pygame-CE
       run: |
-        # Pipe "yes" directly to accept Google SDK build-tool terms programmatically
+        # Feeding requirements and extra_recipes directly as flags so buildozer applies them together
+        # This locks compilation to Python 3.11 to prevent Python 3.14 alpha crashes
         yes | buildozer -v android debug \
-          --android.requirements="python3,pygame,pyjnius" \
+          --android.requirements="python3==3.11.0,hostpython3==3.11.0,pygame-ce,pyjnius" \
+          --p4a.extra_recipes="pygame-ce" \
           --p4a.branch="master" \
           --p4a.bootstrap="sdl2" \
           --android.archs="arm64-v8a"
       env:
+        # Bypasses the interactive root user container confirmation prompts
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
         BUILDOZER_WARN_ON_ROOT: "0"
 
@@ -39,4 +43,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
