@@ -21,15 +21,15 @@ jobs:
       run: |
         git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
 
-    - name: Build APK with Buildozer Overrides
+    - name: Build APK with Auto-License Acceptance
       run: |
-        buildozer -v android debug \
+        # Pipe "yes" directly to accept Google SDK build-tool terms programmatically
+        yes | buildozer -v android debug \
           --android.requirements="python3,pygame,pyjnius" \
           --p4a.branch="master" \
           --p4a.bootstrap="sdl2" \
           --android.archs="arm64-v8a"
       env:
-        # These environment variables tell Buildozer it is safe to run as root inside Docker
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
         BUILDOZER_WARN_ON_ROOT: "0"
 
@@ -39,3 +39,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
