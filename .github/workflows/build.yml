@@ -66,18 +66,23 @@ jobs:
 
     - name: Link Legacy SDK Paths & Compile
       run: |
-        # Forcefully accept all global Android licenses in the runner's preinstalled location
+        # Accept licenses for the pre-installed system SDK
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
         
-        # Pre-populate and accept licenses directly for buildozer's upcoming SDK directory path
-        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses --sdk_root=$HOME/.buildozer/android/platform/android-sdk || true
+        # Pre-build Buildozer's internal expected directory structure to bypass the check
+        mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
         
-        sudo mkdir -p "$ANDROID_HOME/tools/bin"
-        sudo ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_HOME/tools/bin/sdkmanager"
+        # Create a hard symbolic link so Buildozer finds the modern working sdkmanager where it expects it
+        ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager"
         
-        # Build cleanly feeding configuration flags explicitly via argument tokens
-        buildozer -v android debug --android.sdk_path="$ANDROID_HOME" --android.ndk_path="$ANDROID_NDK_HOME" --android.requirements="python3,pygame,pyjnius" --p4a.branch="master" --p4a.bootstrap="sdl2" --android.archs="arm64-v8a"
+        # Build using specific target parameters to force standard C compilation routines
+        buildozer -v android debug \
+          --android.sdk_path="$ANDROID_HOME" \
+          --android.ndk_path="$ANDROID_NDK_HOME" \
+          --android.requirements="python3,pygame,pyjnius" \
+          --p4a.branch="master" \
+          --p4a.bootstrap="sdl2" \
+          --android.archs="arm64-v8a"
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
         BUILDOZER_WARN_ON_ROOT: 0
@@ -88,4 +93,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
