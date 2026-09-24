@@ -23,7 +23,7 @@ jobs:
 
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear out any previous build caches completely inside the container workspace
+        # 1. Clear out previous build caches entirely to discard bad x86_64 architecture wheels
         rm -rf .buildozer/
         rm -rf bin/
 
@@ -35,10 +35,7 @@ jobs:
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Trigger a strict clean of previous package compiles to purge old cached target architectures
-        buildozer android clean
-
-        # 5. Run buildozer natively to re-compile pygame-ce directly for arm64-v8a
+        # 4. Run buildozer natively to re-compile your app clean for arm64-v8a from scratch
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
@@ -50,4 +47,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
