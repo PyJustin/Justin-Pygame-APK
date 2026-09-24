@@ -23,15 +23,23 @@ jobs:
 
     - name: Patch buildozer.spec and Compile
       run: |
-        # Safely overwrite the requirements line inside buildozer.spec so it doesn't default to python 3.14
+        # 1. Clear out any previous build caches completely inside the container workspace
+        rm -rf .buildozer/
+        rm -rf bin/
+
         if [ -f "buildozer.spec" ]; then
+          # 2. Forcefully inject pygame-ce and Python 3.11 straight into your spec requirements
           sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame-ce,pyjnius|g' buildozer.spec
           
-          # Clean up any potential conflicting p4a branch configurations
+          # 3. Enforce the master branch to pull stable recipes
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # Run buildozer normally without command line flags to let it safely read the modified spec file
+        # 4. Trigger a strict deep clean of previous package compiles to purge old x86_64 caches
+        # This forces the builder to acknowledge the pygame-ce recipe and compile it from source for arm64
+        buildozer android appclean
+
+        # 5. Run buildozer natively
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
