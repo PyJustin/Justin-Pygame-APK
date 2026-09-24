@@ -57,29 +57,6 @@ jobs:
         rm -rf ~/.buildozer/
         rm -rf ~/.cache/pip
 
-    # This creates the verified custom mobile compilation recipe for PYGAME-CE
-    - name: Create Custom Pygame-CE Build Recipe
-      run: |
-        mkdir -p custom_recipes/pygame
-        
-        cat << 'EOF' > custom_recipes/pygame/__init__.py
-        from pythonforandroid.recipe import PythonRecipe
-
-        class PygameCERecipe(PythonRecipe):
-            version = 'main'
-            url = 'git+https://github.com'
-            
-            depends = ['sdl2', 'sdl2_image', 'sdl2_mixer', 'sdl2_ttf', 'jpeg', 'png', 'python3']
-            call_hostpython_via_targetpython = False
-
-            def get_recipe_env(self, arch):
-                env = super().get_recipe_env(arch)
-                env['USE_X11'] = '0'
-                return env
-
-        recipe = PygameCERecipe()
-        EOF
-
     - name: Link Legacy SDK Paths & Compile
       run: |
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
@@ -94,7 +71,7 @@ jobs:
         
         export APP_ANDROID_ARCHS="arm64-v8a"
         
-        # Compile using the generated local recipe hook pathway
+        # Compile using the default native pipeline
         buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
@@ -109,4 +86,3 @@ jobs:
           bin/*.apk
         if-no-files-found: error
 
-  
