@@ -121,7 +121,7 @@ android.minapi = 31
 #android.ndk_api = 25
 
 # (str) Android NDK version to use
-android.ndk = 25b
+#android.ndk = 25b
 
 # (int) Android SDK version to use - Colab says this is deprecated and ignored.
 #android.sdk = 34
