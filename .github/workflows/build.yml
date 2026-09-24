@@ -10,7 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Run natively inside the official Kivy Buildozer image
     container:
       image: ghcr.io/kivy/buildozer:latest
 
@@ -24,10 +23,19 @@ jobs:
 
     - name: Build APK with Buildozer Overrides
       run: |
-        # We pass arguments via the command line to override the spec file
-        # This completely avoids editing text files and circumvents any DuplicateOptionError crash
         buildozer -v android debug \
           --android.requirements="python3,pygame,pyjnius" \
           --p4a.branch="master" \
           --p4a.bootstrap="sdl2" \
           --android.archs="arm64-v8a"
+      env:
+        # These environment variables tell Buildozer it is safe to run as root inside Docker
+        BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
+        BUILDOZER_WARN_ON_ROOT: "0"
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: bin/*.apk
+        if-no-files-found: error
