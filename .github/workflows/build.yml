@@ -78,9 +78,12 @@ jobs:
           # Cleanly overwrite the p4a branch definition line to prevent duplicate tokens
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
 
-          # Fix the deprecated token warning by renaming android.bootstrap to p4a.bootstrap
-          sed -i 's|^#\?android.bootstrap =|p4a.bootstrap =|g' buildozer.spec
-          sed -i 's|^p4a.bootstrap =.*|p4a.bootstrap = sdl2|g' buildozer.spec
+          # Strip out any pre-existing bootstrap references completely to stop configuration duplicates
+          sed -i '/android.bootstrap/d' buildozer.spec
+          sed -i '/p4a.bootstrap/d' buildozer.spec
+          
+          # Append a single clean configuration rule under the [app] header
+          sed -i '/\[app\]/a p4a.bootstrap = sdl2' buildozer.spec
         fi
         
         # Build using specific target parameters to force standard C compilation routines
@@ -95,3 +98,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
