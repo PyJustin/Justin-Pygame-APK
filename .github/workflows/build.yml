@@ -18,7 +18,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
 
     - name: Install System Dependencies
       run: |
@@ -55,7 +55,8 @@ jobs:
     - name: Install Buildozer and Cython
       run: |
         python -m pip install --upgrade pip
-        pip install buildozer cython wheel
+        # Pinning stable versions prevents tool drift from pulling alpha python targets
+        pip install "buildozer>=1.5.0" "cython<3.0.0" wheel "python-for-android>=2024.01.01"
 
     - name: Force Purge Buildozer and Pip Caches
       run: |
@@ -69,18 +70,16 @@ jobs:
         sudo mkdir -p "$ANDROID_HOME/tools/bin"
         sudo ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "$ANDROID_HOME/tools/bin/sdkmanager"
         
-        # Adjust buildozer.spec dynamically for stability
+        # Correctly format buildozer.spec dynamically
         if [ -f "buildozer.spec" ]; then
-          # Inject standard SDK/NDK paths
           sed -i "s|#android.sdk_path =|android.sdk_path = $ANDROID_HOME|g" buildozer.spec
           sed -i "s|#android.ndk_path =|android.ndk_path = $ANDROID_NDK_HOME|g" buildozer.spec
-          
-          # Force requirements block to use a stable Python 3.11 target instead of defaulting to 3.14
-          sed -i 's|^requirements = .*|requirements = python3==3.11,hostpython3==3.11,pygame,pyjnius|g' buildozer.spec
+          # Revert requirements back to safe standard naming layout
+          sed -i 's|^requirements = .*|requirements = python3,hostpython3,pygame,pyjnius|g' buildozer.spec
         fi
         
-        # Compile using the default native pipeline with architecture and requirement overrides
-        buildozer -v android debug --android.archs=arm64-v8a --android.requirements="python3==3.11,hostpython3==3.11,pygame,pyjnius"
+        # Build using native toolchain properties to avoid the 404 error
+        buildozer -v android debug --android.archs=arm64-v8a --android.requirements="python3,hostpython3,pygame,pyjnius"
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: 1
         BUILDOZER_WARN_ON_ROOT: 0
