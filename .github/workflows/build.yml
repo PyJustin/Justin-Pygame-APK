@@ -1,5 +1,4 @@
 name: Build Android App with Buildozer
-
 on:
   push:
     branches: [ main, master ]
@@ -21,23 +20,27 @@ jobs:
       run: |
         git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
 
+    # Optional but highly recommended: Cache Buildozer state to stop 30+ minute builds
+    - name: Cache Buildozer global directory
+      uses: actions/cache@v4
+      with:
+        path: ~/.buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear out previous build caches entirely to ensure no desktop wheels are left
-        rm -rf .buildozer/
-        rm -rf bin/
-
         if [ -f "buildozer.spec" ]; then
-          # 2. Forcefully inject requirements and specify python 3.11 target stability
-          sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame-ce,pyjnius|g' buildozer.spec
+          # 1. Ensure requirements match python3 and pygame-ce
+          # Note: Avoid locking hostpython3 to an exact patch version unless absolutely required by your environment, as p4a handles this best dynamically.
+          sed -i 's|^requirements = .*|requirements = python3==3.11.0,pygame-ce,pyjnius|g' buildozer.spec
           
-          # 3. Enforce the master branch to pull stable mobile recipes
+          # 2. Force the master branch to pull stable mobile recipes (includes pygame-ce recipe updates)
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Use the PIP_NO_BINARY environment variable and --no-binary flag to block x86_64 desktop wheels
-        # This completely forces pip to compile pygame-ce for the target phone architecture (ARM64)
-        export PIP_NO_BINARY=:all:
+        # 3. Run Buildozer normally. Removed PIP_NO_BINARY to let p4a cross-compile properly.
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
