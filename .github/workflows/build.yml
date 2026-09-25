@@ -28,10 +28,8 @@ jobs:
         rm -rf bin/
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Match a highly stable configuration for complex custom C compilations
-          # Pinning to Cython 0.29.33 within the spec file forces Buildozer to build its internal environment 
-          # using the legacy header structure that Pygame safely expects.
-          sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame,pyjnius,cython==0.29.33|g' buildozer.spec
+          # 2. Map back to the native compiled recipe pipeline
+          sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
@@ -39,7 +37,18 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 4. Compile the app cleanly
+        # 4. EXPLICIT SOURCE PATCH: Pre-download the source or force python-for-android
+        # to clone it, then immediately strip the hardcoded longintrepr.h from the C source
+        # before the NDK compiler runs.
+        mkdir -p .buildozer/android/platform/build-arm64-v8a/build/other_builds/pygame/arm64-v8a__ndk_target_31/pygame/
+        git clone --depth 1 -b main https://github.com .buildozer/android/platform/build-arm64-v8a/build/other_builds/pygame/arm64-v8a__ndk_target_31/pygame/ || true
+        
+        # Modify the offending C file to remove the broken header inclusion safely
+        if [ -f ".buildozer/android/platform/build-arm64-v8a/build/other_builds/pygame/arm64-v8a__ndk_target_31/pygame/src_c/_sdl2/sdl2.c" ]; then
+          sed -i 's|#include "longintrepr.h"|/* #include "longintrepr.h" */|g' .buildozer/android/platform/build-arm64-v8a/build/other_builds/pygame/arm64-v8a__ndk_target_31/pygame/src_c/_sdl2/sdl2.c
+        fi
+
+        # 5. Compile the app cleanly
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
