@@ -21,29 +21,28 @@ jobs:
       run: |
         git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
 
+    - name: Force Downgrade Cython to fix longintrepr.h
+      run: |
+        # Force downgrade Cython globally in the container before buildozer builds its environment
+        pip install --upgrade "Cython<3.0" "setuptools<71.0.0"
+
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear out previous environments
+        # 1. Clear out previous failed environments completely
         rm -rf .buildozer/
         rm -rf bin/
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Bind to the native recipe framework
+          # 2. Use the cross-compiled recipe framework mapping
           sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 3. Target the pygame-ce codebase
+        # 3. Pull pygame-ce straight from source via the recipe pipeline
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 4. FIX 'longintrepr.h' MISSING: Inject internal Python header locations 
-        # so the C cross-compiler can resolve pygame-ce internal hooks cleanly.
-        PY_INC_DIR="/__w/Justin-Pygame-APK/Justin-Pygame-APK/.buildozer/android/platform/build-arm64-v8a/build/other_builds/python3/arm64-v8a__ndk_target_31/python3/android-build/android-root/include/python3.11"
-        export CFLAGS="-I$PY_INC_DIR -I$PY_INC_DIR/internal"
-        export CXXFLAGS="-I$PY_INC_DIR -I$PY_INC_DIR/internal"
-
-        # 5. Compile the app
+        # 4. Compile the app cleanly
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
