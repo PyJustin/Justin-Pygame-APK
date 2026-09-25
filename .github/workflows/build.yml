@@ -1,4 +1,5 @@
 name: Build Android App with Buildozer
+
 on:
   push:
     branches: [ main, master ]
@@ -20,29 +21,24 @@ jobs:
       run: |
         git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
 
-    - name: Cache Buildozer global directory
-      uses: actions/cache@v4
-      with:
-        path: ~/.buildozer
-        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
-        restore-keys: |
-          ${{ runner.os }}-buildozer-
-
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear out previous workspace directories to prevent artifact contamination
+        # 1. Clear out previous build environments completely
         rm -rf .buildozer/
         rm -rf bin/
-        
+
         if [ -f "buildozer.spec" ]; then
-          # 2. Inject explicit matching micro-versions for python3 and hostpython3
-          sed -i 's|^requirements = .*|requirements = python3==3.11.9,hostpython3==3.11.9,pygame-ce,pyjnius|g' buildozer.spec
+          # 2. Inject target package requirements
+          sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame-ce,pyjnius|g' buildozer.spec
           
-          # 3. Pull stable mobile recipes via the master branch
+          # 3. Ensure stable mobile recipe branch
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
+
+        # 4. CRITICAL: Force pip to only compile pygame-ce from source inside p4a
+        # Using --no-binary specifically for pygame-ce prevents it from breaking hostpython tools
+        export PIP_NO_BINARY=pygame-ce
         
-        # 4. Compile the application
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
@@ -54,4 +50,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
