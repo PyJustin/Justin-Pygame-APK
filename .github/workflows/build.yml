@@ -23,26 +23,27 @@ jobs:
 
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Purge all host and device build caches to destroy the bad x86_64 wheel
+        # 1. Clear out previous environments
         rm -rf .buildozer/
         rm -rf bin/
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Tell p4a to trigger its native compiled pygame engine recipe framework,
-          # but we change the requirements string to map it cleanly.
+          # 2. Bind to the native recipe framework
           sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame,pyjnius|g' buildozer.spec
-          
-          # 3. Force p4a.branch to master for mobile recipe isolation
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. OVERRIDE THE RECIPE: Intercept the native pygame recipe source environment 
-        # variable and point it directly to the pygame-ce source repository.
-        # This bypasses pip wheels entirely and forces the NDK to spend 30+ minutes compiling AARCH64.
+        # 3. Target the pygame-ce codebase
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. Execute build
+        # 4. FIX 'longintrepr.h' MISSING: Inject internal Python header locations 
+        # so the C cross-compiler can resolve pygame-ce internal hooks cleanly.
+        PY_INC_DIR="/__w/Justin-Pygame-APK/Justin-Pygame-APK/.buildozer/android/platform/build-arm64-v8a/build/other_builds/python3/arm64-v8a__ndk_target_31/python3/android-build/android-root/include/python3.11"
+        export CFLAGS="-I$PY_INC_DIR -I$PY_INC_DIR/internal"
+        export CXXFLAGS="-I$PY_INC_DIR -I$PY_INC_DIR/internal"
+
+        # 5. Compile the app
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
