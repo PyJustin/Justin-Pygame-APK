@@ -23,22 +23,23 @@ jobs:
 
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear out previous build environments completely
+        # 1. Wipe out any bad cached wheels from previous runs
         rm -rf .buildozer/
         rm -rf bin/
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Inject target package requirements
+          # 2. Set strict requirements
           sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame-ce,pyjnius|g' buildozer.spec
           
-          # 3. Ensure stable mobile recipe branch
+          # 3. Use stable mobile recipes
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
+          
+          # 4. FORCE BUILD FROM SOURCE: Tell buildozer's pip installer to ignore wheels ONLY for pygame-ce
+          # This appends the raw pip flag directly inside the spec file execution loop
+          sed -i 's|^#\?p4a.extra_pip_arguments =.*|p4a.extra_pip_arguments = --no-binary=pygame-ce|g' buildozer.spec
         fi
 
-        # 4. CRITICAL: Force pip to only compile pygame-ce from source inside p4a
-        # Using --no-binary specifically for pygame-ce prevents it from breaking hostpython tools
-        export PIP_NO_BINARY=pygame-ce
-        
+        # 5. Run the build cleanly without global environment overrides
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
