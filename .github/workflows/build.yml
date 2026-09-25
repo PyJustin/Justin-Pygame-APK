@@ -1,20 +1,49 @@
+name: Build Android App with Buildozer
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/kivy/buildozer:latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Fix Safe Directory permissions for Git
+      run: |
+        git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
+
+    - name: Cache Buildozer global directory
+      uses: actions/cache@v4
+      with:
+        path: ~/.buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clean out any corrupted workspace states from the previous crash
         rm -rf .buildozer/
         rm -rf bin/
-
         if [ -f "buildozer.spec" ]; then
-          # 2. Force BOTH python3 and hostpython3 to use the stable 3.11 branch
           sed -i 's|^requirements = .*|requirements = python3==3.11,hostpython3==3.11,pygame-ce,pyjnius|g' buildozer.spec
-          
-          # 3. Force the master branch to pull stable mobile recipes
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
-
-        # 4. Run Buildozer
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
         BUILDOZER_WARN_ON_ROOT: "0"
 
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: bin/*.apk
+        if-no-files-found: error
