@@ -37,16 +37,11 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 4. EXPLICIT SOURCE PATCH: Pre-download the source or force python-for-android
-        # to clone it, then immediately strip the hardcoded longintrepr.h from the C source
-        # before the NDK compiler runs.
-        mkdir -p .buildozer/android/platform/build-arm64-v8a/build/other_builds/pygame/arm64-v8a__ndk_target_31/pygame/
-        git clone --depth 1 -b main https://github.com .buildozer/android/platform/build-arm64-v8a/build/other_builds/pygame/arm64-v8a__ndk_target_31/pygame/ || true
-        
-        # Modify the offending C file to remove the broken header inclusion safely
-        if [ -f ".buildozer/android/platform/build-arm64-v8a/build/other_builds/pygame/arm64-v8a__ndk_target_31/pygame/src_c/_sdl2/sdl2.c" ]; then
-          sed -i 's|#include "longintrepr.h"|/* #include "longintrepr.h" */|g' .buildozer/android/platform/build-arm64-v8a/build/other_builds/pygame/arm64-v8a__ndk_target_31/pygame/src_c/_sdl2/sdl2.c
-        fi
+        # 4. FIX 'longintrepr.h' MISSING: Proactively inject an empty dummy file 
+        # into the compiler's primary system path so the build never fails on it.
+        # Buildozer downloads its NDK dynamically into home, so we inject it directly into the toolchain directory skeleton.
+        mkdir -p /github/home/.buildozer/android/platform/android-ndk-r28c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/
+        touch /github/home/.buildozer/android/platform/android-ndk-r28c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/longintrepr.h
 
         # 5. Compile the app cleanly
         yes | buildozer -v android debug
@@ -60,3 +55,5 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
+        
