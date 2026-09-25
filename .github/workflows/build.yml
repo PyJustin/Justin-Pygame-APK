@@ -21,20 +21,17 @@ jobs:
       run: |
         git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
 
-    - name: Force Downgrade Cython to fix longintrepr.h
-      run: |
-        # Force downgrade Cython globally in the container before buildozer builds its environment
-        pip install --upgrade "Cython<3.0" "setuptools<71.0.0"
-
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear out previous failed environments completely
+        # 1. Clear out previous environments cleanly
         rm -rf .buildozer/
         rm -rf bin/
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Use the cross-compiled recipe framework mapping
-          sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame,pyjnius|g' buildozer.spec
+          # 2. Match a highly stable configuration for complex custom C compilations
+          # Pinning to Cython 0.29.33 within the spec file forces Buildozer to build its internal environment 
+          # using the legacy header structure that Pygame safely expects.
+          sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame,pyjnius,cython==0.29.33|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
