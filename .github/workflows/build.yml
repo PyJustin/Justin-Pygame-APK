@@ -30,12 +30,19 @@ jobs:
 
     - name: Patch buildozer.spec and Compile
       run: |
+        # 1. Clear out previous workspace directories to prevent artifact contamination
         rm -rf .buildozer/
         rm -rf bin/
+        
         if [ -f "buildozer.spec" ]; then
-          sed -i 's|^requirements = .*|requirements = python3==3.11,hostpython3==3.11,pygame-ce,pyjnius|g' buildozer.spec
+          # 2. Inject explicit matching micro-versions for python3 and hostpython3
+          sed -i 's|^requirements = .*|requirements = python3==3.11.9,hostpython3==3.11.9,pygame-ce,pyjnius|g' buildozer.spec
+          
+          # 3. Pull stable mobile recipes via the master branch
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
+        
+        # 4. Compile the application
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
@@ -47,3 +54,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
