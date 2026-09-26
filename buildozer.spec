@@ -6,7 +6,7 @@ title = Fun with Pymunk
 # the name of your game; one word only.
 # only lowercase ASCII characters (a-z) and numbers (0-9).
 # hyphens, symbols, and punctuation are completely forbidden and underscores are not recommended.
-package.name = myapphello
+package.name = myappfunwithpymunk
 
 # this is to identify you or your company. 
 # same rules as for package.name
