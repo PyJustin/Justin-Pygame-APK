@@ -29,8 +29,7 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. FIX: Install wheel, pycparser, and cffi cleanly into the environment workspace
-        # Using --break-system-packages guarantees exposure across all internal sub-environments.
+        # 2. Pre-seed the system environment
         pip install --upgrade pip setuptools wheel --break-system-packages
         pip install pycparser cffi cython --break-system-packages
 
@@ -44,7 +43,12 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. Compile the app cleanly 
+        # 5. FORCE INJECT pycparser directly into the internal build toolchain's virtual environment path
+        # This breaks the hostpython isolation and bypasses the metadata generation error.
+        mkdir -p /root/.local/share/python-for-android/buildpackages
+        pip install pycparser cffi --target=/root/.local/share/python-for-android/buildpackages --break-system-packages
+
+        # 6. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
@@ -56,4 +60,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
