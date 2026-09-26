@@ -1,3 +1,4 @@
+
 name: Build Android App with Buildozer
 
 on:
@@ -23,28 +24,24 @@ jobs:
 
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear project and hidden pip caches completely 
+        # 1. Clear out local and hidden environment caches to block bad wheels
         rm -rf .buildozer/
         rm -rf bin/
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Bind to the native compiled recipe pipeline framework
-          sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame,pyjnius|g' buildozer.spec
+          # 2. FIX Python Version: Downgrade from 3.11.0 to 3.10.12 
+          # This natively provides 'longintrepr.h' to the SDL2 C extensions during NDK cross-compilation.
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 3. Pull pygame-ce straight from source via the recipe pipeline
+        # 3. Explicitly pull pygame-ce source distributions via recipe parameters
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 4. FIX 'longintrepr.h' BYPASS VIA CFLAGS:
-        # Instead of a dummy file, we define Py_BUILD_CORE which tells the Python headers 
-        # to expose the internal struct layout without looking for the standalone longintrepr.h file.
-        export CFLAGS="-DPy_BUILD_CORE=1"
-
-        # 5. Compile the app cleanly
+        # 4. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
