@@ -23,12 +23,14 @@ jobs:
 
     - name: Patch buildozer.spec and Compile
       run: |
-        # 1. Clear out previous environments cleanly
+        # 1. Clear project and hidden pip caches completely 
         rm -rf .buildozer/
         rm -rf bin/
+        rm -rf /github/home/.cache/pip/*
+        rm -rf /root/.cache/pip/*
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Map back to the native compiled recipe pipeline
+          # 2. Bind to the native compiled recipe pipeline framework
           sed -i 's|^requirements = .*|requirements = python3==3.11.0,hostpython3==3.11.0,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
@@ -37,11 +39,10 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 4. FIX 'longintrepr.h' MISSING: Proactively inject an empty dummy file 
-        # into the compiler's primary system path so the build never fails on it.
-        # Buildozer downloads its NDK dynamically into home, so we inject it directly into the toolchain directory skeleton.
-        mkdir -p /github/home/.buildozer/android/platform/android-ndk-r28c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/
-        touch /github/home/.buildozer/android/platform/android-ndk-r28c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/longintrepr.h
+        # 4. FIX 'longintrepr.h' BYPASS VIA CFLAGS:
+        # Instead of a dummy file, we define Py_BUILD_CORE which tells the Python headers 
+        # to expose the internal struct layout without looking for the standalone longintrepr.h file.
+        export CFLAGS="-DPy_BUILD_CORE=1"
 
         # 5. Compile the app cleanly
         yes | buildozer -v android debug
@@ -55,7 +56,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
-        #
-
-        
