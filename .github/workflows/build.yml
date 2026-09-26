@@ -30,9 +30,9 @@ jobs:
         rm -rf /root/.cache/pip/*
 
         if [ -f "buildozer.spec" ]; then
-          # 2. FIX Python Version: Downgrade from 3.11.0 to 3.10.12 
-          # This natively provides 'longintrepr.h' to the SDL2 C extensions during NDK cross-compilation.
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
+          # 2. FIX Python Version & Add Pymunk Requirements
+          # Appended 'cffi' and 'pymunk' to ensure C-extensions compile properly.
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
