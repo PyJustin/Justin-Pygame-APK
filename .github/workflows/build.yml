@@ -29,22 +29,23 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Inject compilation dependencies globally
+        # NEW: Install C-parsing prerequisites natively into the environment 
+        # so Buildozer doesn't fail with ModuleNotFoundError: 'pycparser'
         pip install --upgrade pip
         pip install pycparser cffi cython
 
         if [ -f "buildozer.spec" ]; then
-          # 3. Synchronize target Python and host Python version to fix the 3.14 mismatch
-          # Pinning both explicitly to 3.11.10 resolves C-linking compatibility.
-          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          # 2. FIX Python Version & Add Pymunk Requirements
+          # Kept your Python 3.10.12 patch and cleanly appended pycparser, cffi, and pymunk
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Explicitly pull pygame-ce source distributions via recipe parameters
+        # 3. Explicitly pull pygame-ce source distributions via recipe parameters
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. Compile the app cleanly 
+        # 4. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
