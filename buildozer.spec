@@ -1,7 +1,7 @@
 [app]
 
 # (str) Title of your game; capital letters and spaces are allowed,  but no special characters.
-title = Hello Justin
+title = Fun with Pymunk
 
 # the name of your game; one word only.
 # only lowercase ASCII characters (a-z) and numbers (0-9).
@@ -44,13 +44,12 @@ version = 0.1
 # (list) Application requirements
 
 # 1. Keep requirements simple. 
-# Keep Requirements to a minimum
-requirements = python3, pygame, pyjnius, hostpython3
-# the following will provide Buildozer with Pygame-CE
+# The .yml file will create pygame-ce for Buildozer with:-  p4a.extra_recipes = pygame-ce
+requirements = python3, pygame, pyjnius, hostpython3,pymunk
 p4a.extra_recipes = pygame-ce
 
 # Keep this line -  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
-android.bootstrap = sdl2
+p4a.bootstrap  = sdl2
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -117,11 +116,8 @@ android.api = 35
 # (int) Minimum API your APK / AAB will support.
 android.minapi = 31
 
-# (int) Android NDK API to use. This is the minimum API your app will support, it should usually match android.minapi.
-#android.ndk_api = 25
-
 # (str) Android NDK version to use
-#android.ndk = 25b
+# android.ndk = 31
 
 # (int) Android SDK version to use - Colab says this is deprecated and ignored.
 #android.sdk = 34
