@@ -29,14 +29,14 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Pre-install pycparser and cffi into the global container environment
+        # 2. Inject compilation dependencies globally
         pip install --upgrade pip
-        pip install pycparser cffi
+        pip install pycparser cffi cython
 
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX Python Version & Add Pymunk Requirements
-          # REMOVED hostpython3 to let p4a use the container's python with pycparser pre-installed.
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          # 3. Synchronize target Python and host Python version to fix the 3.14 mismatch
+          # Pinning both explicitly to 3.11.10 resolves C-linking compatibility.
+          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
@@ -56,3 +56,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
