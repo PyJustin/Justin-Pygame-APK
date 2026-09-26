@@ -29,9 +29,10 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Install parsing dependencies natively in the container
-        pip install --upgrade pip
-        pip install pycparser cffi cython
+        # 2. FIX: Install wheel, pycparser, and cffi cleanly into the environment workspace
+        # Using --break-system-packages guarantees exposure across all internal sub-environments.
+        pip install --upgrade pip setuptools wheel --break-system-packages
+        pip install pycparser cffi cython --break-system-packages
 
         if [ -f "buildozer.spec" ]; then
           # 3. FIX Python Version & Set Pymunk Requirements
@@ -43,10 +44,7 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. FIX: Export PYTHONPATH so the internal hostpython version can access pycparser
-        export PYTHONPATH="/usr/local/lib/python3.11/site-packages:/usr/lib/python3/dist-packages:$PYTHONPATH"
-
-        # 6. Compile the app cleanly 
+        # 5. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
@@ -58,3 +56,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
