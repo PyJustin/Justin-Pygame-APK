@@ -1,60 +1,9 @@
-#-------------------------------------------------------------------------------
-# Name:        module1
-# Purpose:
-#
-# Author:      badow
-#
-# Created:     17/07/2025
-# Copyright:   (c) badow 2025
-# Licence:     <your licence>
-#
-#Here is a visual Crash Catcher .
-#With this snippet, if something goes wrong, the app won't just vanish
-#—it will freeze on a black screen with bright red text detailing the exact line and reason for the crash.
-import sys
-import traceback
-import os
 
-def handle_exception(exc_type, exc_value, exc_traceback):
-    # Format the error message into strings
-    error_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-    error_text = "".join(error_lines)
-    
-    # Force initialize a basic window to show the error
-    import pygame
-    pygame.display.init()
-    pygame.font.init()
-    
-    screen = pygame.display.set_mode((800, 600))
-    font = pygame.font.SysFont("monospace", 15)
-    
-    # Loop and draw the error message line by line onto the screen
-    running = True
-    while running:
-        screen.fill((0, 0, 0)) # Black background
-        y = 10
-        for line in error_text.split('\n'):
-            # Render text in bright red so it stands out
-            text_surface = font.render(line, True, (255, 50, 50))
-            screen.blit(text_surface, (10, y))
-            y += 20
-        
-        pygame.display.flip()
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or event.type == pygame.MOUSEBUTTONDOWN:
-                running = False
-                
-    sys.__excepthook__(exc_type, exc_value, exc_traceback)
-
-sys.excepthook = handle_exception
-
-# Your actual game imports and code continue below...
-#-------------------------------------------------------------------------------------------------------------
-
-import pygame
-import pathlib
-import os
+# Now let's try and bring together what we've learned and have a bit of fun
+import pygame as pg
+import pymunk  
+# We're going to need some random numbers
+from random import randrange
 
 # 1. Force the audio driver to do nothing, else game will crash when not using audio .
 os.environ["SDL_AUDIODRIVER"] = "dummy"
@@ -62,72 +11,67 @@ os.environ["SDL_AUDIODRIVER"] = "dummy"
 # 2. Safely initialize everything (including display and freetype for fonts)
 pygame.init()
 
-pygame.display.set_caption("Hello Justin")  # <<-- will go into 'Title' of the PygBag generated .HTML file.
+pymunk.pygame_util.positive_y_is_up = False # need to tell Pymunk as Y increases, Pygame moves DOWN (else it assumes UP).
 
-# import traceback   # for use with "Try" exception capture; uncomment if game not working properly
+RESOLUTION = W, H = 1280, 1024
+FPS = 60
 
-pathlib.Path(__file__).parent.resolve()  # needed for Android to find the .ttf files.
-path = pathlib.Path(__file__).parent     # needed for Android to find the .ttf files.
-print(f"Script Path: {path}")
-# above prints:-
-# Script Path: C:\DOWNLOADS\Build Android APK with COLAB\Hello   <<-- .ttf custom font file is within "Hello" directory.
+surface = pg.display.set_mode(RESOLUTION)
 
-# the following dimensions determine Portrait or landscape
-base_width = 1280
-base_height = 1280
+clock = pg.time.Clock()
+pg.display.set_caption('Fun with pygame and pymonk!')
 
-# For Android phone use the following for Full Screen:-
-screen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED)
+#pymunk
+draw_options = pymunk.pygame_util.DrawOptions (surface) # integrate Pymunk with Pygame's "Surface" (Pygame's rectangular area to draw on).                                                          #
+space = pymunk.Space() # set up Pymunk's simulation space, and it's gravity.
+space.gravity = 0, 2000
 
-#  For DESKTOP use the following as the modern way of using the GPU and setting the screen size;
-#  . . . but do NOT use for Mobile.
-# screen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED | pygame.DOUBLEBUF, vsync=1)
+# define a Kine to act as our FLOOR for the Ball to bounce off.
+# "segment_Shape" is just a line starting at 0, H (0,1024) ending at W, H (1280, 1024) with a thickness of 20.
+segment_shape = pymunk.Segment(space.static_body, (0, H), (W, H), 20)
 
-GOLD = (255, 215, 0)
-RED = (255, 0, 0)
-BLACK = (0, 0, 0)
+# add to the segment_shape elasticity to make the ball bounce off it.
+segment_shape.elasticity = 0.8
+segment_shape.friction = 0.5    # surface friction; a value of 0 means, objects will interact without influencing eachother at all
+space.add(segment_shape)
 
+# The following Method creates our ball (really just a circle), and with this Meythod we can easily make many more within the game loop by calling this Function.
+def create_ball(space, pos, radius=60): # 'space' is our defined surface; 'pos' is (x, y) coordinates of the circle's center as a tuple e.g., (100, 100); then 'radius'.
+    ball_mass, ball_radius = radius/5, radius
+    ball_momentum = pymunk.moment_for_circle(ball_mass, 0, ball_radius)
+    ball_body = pymunk.Body(ball_mass, ball_momentum)
+    ball_body.position = pos
+    ball_shape = pymunk.Circle(ball_body, ball_radius)
+    ball_shape.elasticity = 0.8
+    ball_shape.friction = 0.5
+    ball_shape.color = (randrange(0,255), randrange(0,255), randrange(0,255), 255) # random colour range
+    space.add(ball_body, ball_shape)
 
-# to capture the Frames Per Second
-clock = pygame.time.Clock()
+# If width is 0 (default), the circle will be filled solid.
+# If width is greater than 0, then its the thickness of the circular line (a hollow circle).
 
-while True:
+# =================================================================================================================================================================
 
-  # pygame.time.delay(300)
+# MAIN GAME LOOP
 
-  # try:     # all code in this block will be checked for an exception in processing
-             # . . . the exception will be printed below using "except Exception: " at the end of the program
-    for event in pygame.event.get():
+never_gonna_give_you_up = True
 
-        if event.type == pygame.QUIT:
+while never_gonna_give_you_up:
+    surface.fill(pg.Color('black'))
 
-            # deactivates the pygame library
-            pygame.quit()
+    for i in pg.event.get():
+        if i.type == pg.QUIT:
+            never_gonna_give_you_up = False
 
-            # quit the program.
-            quit()
+        # When user clicks left mouse button, a ball of random size and color is spawned on the location
+        if i.type == pg.MOUSEBUTTONDOWN:
+            if i.button == 1: # button 1?  (left)
+                create_ball(space, i.pos, randrange(10, 80)) # call Function "create_ball"; draw at position of the mouse click.
 
-    clock.tick(250)  # set the FPS rate; this must be here within the "while True" loop.
+    space.step(1/FPS)               # these 2 lines of code ensures the pymunk engine ticks along nicely with Pymunk;
+    space.debug_draw(draw_options) # i.e we “step” the engine forward relative to our frame update speed.;
+                                     # . . . and then dump the output to our Pygame "(surface)" that we linked to Pymunk above in . . .
+                                     # . . . "draw_options = pymunk.pygame_util.DrawOptions(surface)".
 
-    font = pygame.font.Font(os.path.abspath(".")+'/Lemon Days.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
-    #font = pygame.font.Font('C:\PYGAME\My Games\Hello\Lemon Days.ttf', 36)  #  <<-- for Nuitka & Python Interpreter.
-    hardware_surface = font.render('Welcome to Pygame, Justin !', True, (GOLD))
-    screen.blit(hardware_surface, (10, 100))
-    #screen.blit(text_surface, (width // 2 - text_surface.get_width() // 2, 100)) # 100 is the Y co-ordinate
-
-    font = pygame.font.Font(os.path.abspath(".")+'/Skincake.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
-    #font = pygame.font.Font('C:\PYGAME\My Games\Hello\Skincake.ttf', 38) #  <<-- for Nuitka & Python Interpreter.
-    hardware_surface = font.render(f'FPS =  {round(clock.get_fps(), 1)}', True, (RED)) # "1" means one decimal place
-    screen.blit(hardware_surface, (10, 250))  # copies the surface object to the screen.
-
-    # Draws the surface object to the screen.
-    pygame.display.update()
-    screen.fill((BLACK))    # without fill the screen the FPS display over eachother so looking fuzzy.
-
-
-
-  # except Exception:   # exceptions/error messages will be captuted for all code within the Try block and prined here . . .
-  #        print(traceback.format_exc())
-                                        # . . . the messages are displayed only from the Nuitka .exe (python interpreter does NOT).
-  # . . . to stop the messages scrolling, just click & hold the yellow bar of the exxception window display. . .
-  # . . . the exception messages are displayed only from the Nuitka .exe (python interpreter does NOT).
+    pg.display.flip()
+    clock.tick(FPS)
