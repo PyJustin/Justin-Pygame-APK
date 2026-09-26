@@ -31,8 +31,8 @@ jobs:
 
         if [ -f "buildozer.spec" ]; then
           # 2. FIX Python Version & Add Pymunk Requirements
-          # Appended 'cffi' and 'pymunk' to ensure C-extensions compile properly.
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,cffi,pymunk|g' buildozer.spec
+          # Added 'pycparser' to prevent the CFFI build compilation error.
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
