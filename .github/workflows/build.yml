@@ -29,23 +29,24 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # NEW: Install C-parsing prerequisites natively into the environment 
-        # so Buildozer doesn't fail with ModuleNotFoundError: 'pycparser'
+        # 2. Install parsing dependencies natively in the container
         pip install --upgrade pip
         pip install pycparser cffi cython
 
         if [ -f "buildozer.spec" ]; then
-          # 2. FIX Python Version & Add Pymunk Requirements
-          # Kept your Python 3.10.12 patch and cleanly appended pycparser, cffi, and pymunk
+          # 3. FIX Python Version & Set Pymunk Requirements
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 3. Explicitly pull pygame-ce source distributions via recipe parameters
+        # 4. Explicitly pull pygame-ce source distributions via recipe parameters
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 4. Compile the app cleanly 
+        # 5. FIX: Export PYTHONPATH so the internal hostpython version can access pycparser
+        export PYTHONPATH="/usr/local/lib/python3.11/site-packages:/usr/lib/python3/dist-packages:$PYTHONPATH"
+
+        # 6. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
@@ -57,4 +58,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
