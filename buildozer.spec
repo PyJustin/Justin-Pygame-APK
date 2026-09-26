@@ -344,8 +344,7 @@ android.allow_backup = True
 # (str) Filename to the hook for p4a
 #p4a.hook =
 
-# (str) Bootstrap to use for android builds
-p4a.bootstrap = sdl2
+# (str) Bootstrap to use for android buil
 
 # (int) port number to specify an explicit --port= p4a argument (eg for bootstrap flask)
 #p4a.port =
