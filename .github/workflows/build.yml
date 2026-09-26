@@ -29,13 +29,14 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Inject requirements directly into Buildozer's inner execution scope
-        buildozer run pip install --upgrade pip
-        buildozer run pip install pycparser cffi
+        # 2. Pre-install pycparser and cffi into the global container environment
+        pip install --upgrade pip
+        pip install pycparser cffi
 
         if [ -f "buildozer.spec" ]; then
           # 3. FIX Python Version & Add Pymunk Requirements
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          # REMOVED hostpython3 to let p4a use the container's python with pycparser pre-installed.
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
