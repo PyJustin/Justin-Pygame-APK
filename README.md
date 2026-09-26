@@ -1,1 +1,1 @@
-To compile Pygame into an APK.
+To compile Pygame into a genuine APK.
