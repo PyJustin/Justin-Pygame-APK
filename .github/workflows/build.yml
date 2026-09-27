@@ -23,12 +23,6 @@ jobs:
         sparse-checkout: |
           pythonforandroid/recipes/pymunk
 
-    - name: Prepare Local Recipe Workspace Structures
-      run: |
-        mkdir -p p4a-recipes
-        mv p4a-temp/pythonforandroid/recipes/pymunk p4a-recipes/
-        rm -rf p4a-temp
-
     - name: Patch buildozer.spec and Compile inside Container
       uses: docker://ghcr.io/kivy/buildozer:latest
       with:
@@ -43,8 +37,7 @@ jobs:
           /home/user/.venv/bin/pip install pycparser cffi cython &&
           if [ -f 'buildozer.spec' ]; then
             sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pymunk|g' buildozer.spec &&
-            sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec &&
-            sed -i 's|^#\?p4a.local_recipes =.*|p4a.local_recipes = ./p4a-recipes|g' buildozer.spec;
+            sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec;
           fi &&
           export P4A_pygame_version='main' &&
           export P4A_pygame_url='git+https://github.com' &&
@@ -55,6 +48,12 @@ jobs:
           else
             rm -rf .buildozer/;
           fi &&
+          yes | buildozer android p4a -- --help || true &&
+          P4A_RECIPE_DIR=\$(find / -name \"recipes\" -type d -path \"*pythonforandroid*\" | head -n 1) &&
+          if [ -d \"\$P4A_RECIPE_DIR\" ]; then
+            cp -r p4a-temp/pythonforandroid/recipes/pymunk \"\$P4A_RECIPE_DIR/\";
+          fi &&
+          rm -rf p4a-temp &&
           yes | buildozer -v android debug
           "
       env:
