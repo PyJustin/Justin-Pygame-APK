@@ -28,22 +28,22 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Inject prerequisites into Buildozer's native execution environment
+        # 2. Inject compilation dependencies right inside the active virtual environment
         /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
         /home/user/.venv/bin/pip install pycparser cffi cython
 
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX: Let Buildozer handle the target python versions natively instead of forcing 3.11.10.
-          # This matches the internal virtual environment structures seamlessly.
-          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          # 3. Streamlined requirements matching your original successful baseline
+          # We add 'pymunk' but omit standalone cffi/pycparser packages to avoid dependency loops.
+          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Point the native pygame recipe to pull down Pygame-CE source code
+        # 4. Point the native pygame recipe to pull down your working Pygame-CE source code
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. Only run clean if the directory structure actually exists
+        # 5. Clean up old platform cache chunks if present
         if [ -d ".buildozer/android/platform/python-for-android" ]; then
           buildozer android clean
         else
