@@ -34,7 +34,7 @@ jobs:
         pip install pycparser cffi cython --target=/tmp/p4a_host_deps --break-system-packages
 
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX: Synchronized to Python 3.11.10 to allow Pymunk and CFFI to build wheels cleanly
+          # 3. Target clean Python 3.11 stability and specify application requirements
           sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame-ce,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
@@ -43,10 +43,14 @@ jobs:
         export P4A_pygame_ce_version="main"
         export P4A_pygame_ce_url="git+https://github.com"
 
-        # 5. Inject the isolated directory into PYTHONPATH for validation loops
+        # 5. FIX: Force python-for-android's recipe handler to build modern Pymunk versions.
+        # This overrides the outdated version built into p4a and allows NDK compliance.
+        export P4A_pymunk_version="6.10.0"
+
+        # 6. Inject the isolated directory into PYTHONPATH for validation loops
         export PYTHONPATH="/tmp/p4a_host_deps:$PYTHONPATH"
 
-        # 6. Compile the app cleanly 
+        # 7. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
@@ -58,4 +62,5 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
 
