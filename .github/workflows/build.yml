@@ -24,7 +24,6 @@ jobs:
     - name: Patch buildozer.spec and Compile
       run: |
         # 1. Clear out local and hidden environment caches to block bad wheels
-        rm -rf .buildozer/
         rm -rf bin/
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
@@ -43,9 +42,13 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. FIX: Force python-for-android to purge cached build distribution blocks
-        # This guarantees it discards old unpatched C files and fetches the fresh CE repository variables.
-        buildozer android clean
+        # 5. FIX: Only run clean if the directory structure actually exists
+        # This prevents the FileNotFoundError from crashing a fresh runner workspace.
+        if [ -d ".buildozer/android/platform/python-for-android" ]; then
+          buildozer android clean
+        else
+          rm -rf .buildozer/
+        fi
 
         # 6. Compile the app cleanly 
         yes | buildozer -v android debug
@@ -59,5 +62,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
-
