@@ -48,12 +48,22 @@ jobs:
         # 6. Relax compilation strictness for Pymunk's internal C-bindings
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security"
 
-        # 7. Initialize buildozer workspace components quietly
-        buildozer android || true
+        # 7. FIX: Force Buildozer to completely download the NDK, SDK, and p4a framework files
+        # Running 'buildozer android p4a -- --help' downloads all necessary directories.
+        yes | buildozer android p4a -- --help || true
 
-        # 8. FIX: Use the direct pythonforandroid toolchain engine to compile the app
-        # This completely bypasses the broken Buildozer validator block and uses the native C recipes!
-        cd /__w/Justin-Pygame-APK/Justin-Pygame-APK/.buildozer/android/platform/python-for-android
+        # 8. FIX: Dynamically locate the python-for-android directory in the workspace
+        # This completely avoids hardcoded path errors.
+        P4A_DIR=$(find / -name "pythonforandroid" -type d -path "*python-for-android*" | head -n 1)
+        if [ -z "$P4A_DIR" ]; then
+          # Fallback check if it's placed inside the local project folder
+          P4A_DIR=$(find . -name "pythonforandroid" -type d | head -n 1)
+        fi
+        
+        # Navigate up one directory level to access the main python-for-android toolchain parent directory
+        cd "$P4A_DIR/.."
+
+        # 9. Use the direct pythonforandroid toolchain engine to compile the app
         /home/user/.venv/bin/python3 -m pythonforandroid.toolchain apk \
           --bootstrap=sdl2 \
           --dist_name=myappfunwithpymunk \
@@ -65,7 +75,7 @@ jobs:
           --color=always \
           --debug
 
-        # 9. Map completed output package directly back to your bin folder for export
+        # 10. Map completed output package directly back to your bin folder for export
         mkdir -p /__w/Justin-Pygame-APK/Justin-Pygame-APK/bin
         cp *.apk /__w/Justin-Pygame-APK/Justin-Pygame-APK/bin/ || true
       env:
