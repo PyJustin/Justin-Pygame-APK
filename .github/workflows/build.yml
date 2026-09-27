@@ -10,50 +10,46 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/kivy/buildozer:latest
 
+    # We remove the global container directive here so we can run host-level steps,
+    # and execute buildozer within its specific image directly during compilation.
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Fix Safe Directory permissions for Git
+    - name: Download Pymunk Recipe on Host (With Internet Access)
       run: |
-        git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
-
-    - name: Patch buildozer.spec and Compile Cleanly
-      run: |
-        # 1. Clear out local and hidden environment caches to block bad wheels
-        rm -rf bin/
-        rm -rf /github/home/.cache/pip/*
-        rm -rf /root/.cache/pip/*
-
-        # 2. Inject compilation dependencies right inside the active virtual environment sandbox
-        /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
-        /home/user/.venv/bin/pip install pycparser cffi cython
-
-        # 3. FIX: Use pure Python to download the Pymunk recipe to completely bypass missing curl/wget tools
+        # This executes safely on the host runner which has full network permissions
         mkdir -p p4a-recipes/pymunk
-        python3 -c "import urllib.request; urllib.request.urlretrieve('https://githubusercontent.com', 'p4a-recipes/pymunk/__init__.py')"
+        curl -sL https://githubusercontent.com -o p4a-recipes/pymunk/__init__.py
 
-        if [ -f "buildozer.spec" ]; then
-          # 4. Match your exact working requirements baseline and cleanly append pymunk
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pymunk|g' buildozer.spec
-          sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
-          
-          # 5. Point Buildozer to utilize our local NDK-compliant Pymunk recipe
-          sed -i 's|^#\?p4a.local_recipes =.*|p4a.local_recipes = ./p4a-recipes|g' buildozer.spec
-        fi
-
-        # 6. Point the native pygame recipe to pull down your working Pygame-CE source code
-        export P4A_pygame_version="main"
-        export P4A_pygame_url="git+https://github.com"
-
-        # 7. Relax compilation strictness for Pymunk's C-bindings
-        export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security"
-
-        # 8. Let Buildozer automatically handle the full SDK, NDK, and compilation paths natively
-        yes | buildozer -v android debug
+    - name: Patch buildozer.spec and Compile inside Container
+      uses: docker://ghcr.io/kivy/buildozer:latest
+      with:
+        entrypoint: /bin/bash
+        args: >
+          -c "
+          git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK &&
+          rm -rf bin/ &&
+          rm -rf /github/home/.cache/pip/* &&
+          rm -rf /root/.cache/pip/* &&
+          /home/user/.venv/bin/pip install --upgrade pip setuptools wheel &&
+          /home/user/.venv/bin/pip install pycparser cffi cython &&
+          if [ -f 'buildozer.spec' ]; then
+            sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pymunk|g' buildozer.spec &&
+            sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec &&
+            sed -i 's|^#\?p4a.local_recipes =.*|p4a.local_recipes = ./p4a-recipes|g' buildozer.spec;
+          fi &&
+          export P4A_pygame_version='main' &&
+          export P4A_pygame_url='git+https://github.com' &&
+          export CFLAGS='-Wno-implicit-function-declaration -Wno-error=format-security' &&
+          if [ -d '.buildozer/android/platform/python-for-android' ]; then
+            buildozer android clean;
+          else
+            rm -rf .buildozer/;
+          fi &&
+          yes | buildozer -v android debug
+          "
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
         BUILDOZER_WARN_ON_ROOT: "0"
@@ -64,4 +60,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
