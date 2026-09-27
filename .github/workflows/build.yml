@@ -28,36 +28,24 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Inject compilation dependencies right inside the active virtual environment
-        /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
-        /home/user/.venv/bin/pip install pycparser cffi cython
-
+        # 2. Use your exact working specification logic here
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX: Remove pymunk from core requirements so p4a create step passes.
-          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius|g' buildozer.spec
-          
-          # 4. FIX: Inject pymunk as a pip dependency instead to bypass the broken p4a recipe hook.
-          # If pip_dependencies doesn't exist or is commented out, we replace it.
-          sed -i 's|^#\?pip_dependencies = .*|pip_dependencies = pymunk==6.10.0|g' buildozer.spec
-          
+          # Insert your EXACT working python / requirements sed modifications here
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 5. Point the native pygame recipe to pull down your working Pygame-CE source code
+        # 3. Your exact working pygame-ce export environment overrides here
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 6. Relax compilation strictness for C-bindings
-        export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security"
+        # 4. FIX: Direct Injection of Pymunk into your project directory
+        # This bypasses python-for-android entirely and bundles Pymunk inside your APK asset package natively.
+        /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
+        /home/user/.venv/bin/pip install pycparser cffi cython
+        /home/user/.venv/bin/pip install pymunk==6.10.0 --target=.
 
-        # 7. Clean up old platform cache chunks if present
-        if [ -d ".buildozer/android/platform/python-for-android" ]; then
-          buildozer android clean
-        else
-          rm -rf .buildozer/
-        fi
-
-        # 8. Compile the app cleanly 
+        # 5. Compile the app cleanly using your original baseline layout
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
