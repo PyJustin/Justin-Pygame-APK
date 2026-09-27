@@ -29,21 +29,21 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Cleanly isolate pycparser into a dedicated directory
+        # 2. Prepare C-parsing prerequisites natively into the environment 
         mkdir -p /tmp/p4a_host_deps
-        pip install pycparser --target=/tmp/p4a_host_deps --break-system-packages
+        pip install pycparser cffi cython --target=/tmp/p4a_host_deps --break-system-packages
 
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX: Swapped legacy 'pygame' for 'pygame-ce' to resolve NDK internal toolchain crashes
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame-ce,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          # 3. FIX: Synchronized to Python 3.11.10 to allow Pymunk and CFFI to build wheels cleanly
+          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame-ce,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Explicitly route python-for-android to build the community distribution
+        # 4. Point environmental markers directly to the modern pygame-ce repository
         export P4A_pygame_ce_version="main"
         export P4A_pygame_ce_url="git+https://github.com"
 
-        # 5. Inject the isolated directory into PYTHONPATH for hostpython3 validation loops
+        # 5. Inject the isolated directory into PYTHONPATH for validation loops
         export PYTHONPATH="/tmp/p4a_host_deps:$PYTHONPATH"
 
         # 6. Compile the app cleanly 
@@ -58,3 +58,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
