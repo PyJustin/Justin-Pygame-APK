@@ -33,8 +33,9 @@ jobs:
         /home/user/.venv/bin/pip install pycparser cffi cython
 
         if [ -f "buildozer.spec" ]; then
-          # 3. Keep target python at clean 3.11 stability
-          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          # 3. FIX: Let Buildozer handle the target python versions natively instead of forcing 3.11.10.
+          # This matches the internal virtual environment structures seamlessly.
+          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
@@ -42,8 +43,7 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. FIX: Only run clean if the directory structure actually exists
-        # This prevents the FileNotFoundError from crashing a fresh runner workspace.
+        # 5. Only run clean if the directory structure actually exists
         if [ -d ".buildozer/android/platform/python-for-android" ]; then
           buildozer android clean
         else
