@@ -29,12 +29,13 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Supply host prerequisites explicitly to the runner container
-        pip install --upgrade pip setuptools wheel --break-system-packages
-        pip install pycparser cffi cython --break-system-packages
+        # 2. FIX: Force injection into Buildozer's internal virtual environment 
+        # This makes pycparser and cffi natively visible to the cross-compiler toolchain.
+        /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
+        /home/user/.venv/bin/pip install pycparser cffi cython
 
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX: Re-introduce pycparser and cffi into requirements so p4a builds cross-compiled versions
+          # 3. Target clean Python 3.11 stability and specify application requirements
           sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
@@ -55,4 +56,5 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
 
