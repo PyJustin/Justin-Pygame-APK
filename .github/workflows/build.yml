@@ -29,13 +29,12 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. FIX: Force injection into Buildozer's internal virtual environment 
-        # This makes pycparser and cffi natively visible to the cross-compiler toolchain.
+        # 2. Inject prerequisites into Buildozer's native execution environment
         /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
         /home/user/.venv/bin/pip install pycparser cffi cython
 
         if [ -f "buildozer.spec" ]; then
-          # 3. Target clean Python 3.11 stability and specify application requirements
+          # 3. Keep target python at clean 3.11 stability
           sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
@@ -44,7 +43,11 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. Compile the app cleanly 
+        # 5. FIX: Force python-for-android to purge cached build distribution blocks
+        # This guarantees it discards old unpatched C files and fetches the fresh CE repository variables.
+        buildozer android clean
+
+        # 6. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
