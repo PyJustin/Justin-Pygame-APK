@@ -48,34 +48,45 @@ jobs:
         # 6. Relax compilation strictness for Pymunk's internal C-bindings
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security"
 
-        # 7. FIX: Force Buildozer to completely download the NDK, SDK, and p4a framework files
-        # Running 'buildozer android p4a -- --help' downloads all necessary directories.
+        # 7. Force Buildozer to completely download the NDK, SDK, and p4a framework files
         yes | buildozer android p4a -- --help || true
 
-        # 8. FIX: Dynamically locate the python-for-android directory in the workspace
-        # This completely avoids hardcoded path errors.
+        # 8. Dynamically locate the python-for-android directory in the workspace
         P4A_DIR=$(find / -name "pythonforandroid" -type d -path "*python-for-android*" | head -n 1)
         if [ -z "$P4A_DIR" ]; then
-          # Fallback check if it's placed inside the local project folder
           P4A_DIR=$(find . -name "pythonforandroid" -type d | head -n 1)
         fi
         
         # Navigate up one directory level to access the main python-for-android toolchain parent directory
         cd "$P4A_DIR/.."
 
-        # 9. Use the direct pythonforandroid toolchain engine to compile the app
+        # 9. FIX: Locate and export the system Android SDK & NDK paths embedded inside the container image
+        # This completely resolves the "Android SDK dir was not specified" crash.
+        export ANDROID_SDK_DIR=$(find /home/user/.buildozer/ -name "android-sdk-*" -type d | head -n 1)
+        export ANDROID_NDK_DIR=$(find /home/user/.buildozer/ -name "android-ndk-*" -type d | head -n 1)
+        
+        # Fallback to standard location arrays if path structures shift
+        if [ -z "$ANDROID_SDK_DIR" ]; then export ANDROID_SDK_DIR="/home/user/.buildozer/android/platform/android-sdk"; fi
+        if [ -z "$ANDROID_NDK_DIR" ]; then export ANDROID_NDK_DIR="/home/user/.buildozer/android/platform/android-ndk-r25b"; fi
+
+        export ANDROID_API=31
+        export ANDROID_NDK_API=31
+
+        # 10. Use the direct pythonforandroid toolchain engine to compile the app
         /home/user/.venv/bin/python3 -m pythonforandroid.toolchain apk \
           --bootstrap=sdl2 \
           --dist_name=myappfunwithpymunk \
           --requirements=python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk \
           --arch=arm64-v8a \
           --storage-dir=/__w/Justin-Pygame-APK/Justin-Pygame-APK/.buildozer/android/platform/build-arm64-v8a \
+          --sdk-dir="$ANDROID_SDK_DIR" \
+          --ndk-dir="$ANDROID_NDK_DIR" \
           --ndk-api=31 \
           --private=/__w/Justin-Pygame-APK/Justin-Pygame-APK \
           --color=always \
           --debug
 
-        # 10. Map completed output package directly back to your bin folder for export
+        # 11. Map completed output package directly back to your bin folder for export
         mkdir -p /__w/Justin-Pygame-APK/Justin-Pygame-APK/bin
         cp *.apk /__w/Justin-Pygame-APK/Justin-Pygame-APK/bin/ || true
       env:
