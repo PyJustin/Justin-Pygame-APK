@@ -34,7 +34,6 @@ jobs:
 
         if [ -f "buildozer.spec" ]; then
           # 3. Streamlined requirements matching your original successful baseline
-          # We add 'pymunk' but omit standalone cffi/pycparser packages to avoid dependency loops.
           sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
@@ -43,14 +42,18 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. Clean up old platform cache chunks if present
+        # 5. FIX: Relax compilation strictness for Pymunk's C-bindings
+        # This keeps the modern NDK from throwing exit status errors on legacy C structures.
+        export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security"
+
+        # 6. Clean up old platform cache chunks if present
         if [ -d ".buildozer/android/platform/python-for-android" ]; then
           buildozer android clean
         else
           rm -rf .buildozer/
         fi
 
-        # 6. Compile the app cleanly 
+        # 7. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
