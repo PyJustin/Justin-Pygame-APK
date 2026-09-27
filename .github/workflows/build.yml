@@ -34,17 +34,16 @@ jobs:
         pip install pycparser cffi cython --target=/tmp/p4a_host_deps --break-system-packages
 
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX: Removed explicit 'pycparser' and 'cffi' modules from requirements.
-          # Letting python-for-android's native pymunk recipe handle them avoids dependency loops.
-          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame-ce,pyjnius,pymunk|g' buildozer.spec
+          # 3. FIX: Keep keyword as 'pygame' to use the native recipe, but we point the URL to pygame-ce below.
+          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Point environmental markers directly to the modern pygame-ce repository
-        export P4A_pygame_ce_version="main"
-        export P4A_pygame_ce_url="git+https://github.com"
+        # 4. Redirect the native 'pygame' recipe to pull down Pygame-CE source code
+        export P4A_pygame_version="main"
+        export P4A_pygame_url="git+https://github.com"
 
-        # 5. Force python-for-android's recipe handler to build modern Pymunk versions.
+        # 5. Route Pymunk to a modern NDK-compliant version
         export P4A_pymunk_version="6.10.0"
 
         # 6. Inject the isolated directory into PYTHONPATH for validation loops
@@ -62,5 +61,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
 
