@@ -16,7 +16,6 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Fetch Pymunk Build Recipe Natively
-      # Uses GitHub's native actions layer to fetch the recipe safely without curl or network syntax bugs
       uses: actions/checkout@v4
       with:
         repository: kivy/python-for-android
@@ -50,6 +49,7 @@ jobs:
           export P4A_pygame_version='main' &&
           export P4A_pygame_url='git+https://github.com' &&
           export CFLAGS='-Wno-implicit-function-declaration -Wno-error=format-security' &&
+          export P4A_pymunk_version='6.10.0' &&
           if [ -d '.buildozer/android/platform/python-for-android' ]; then
             buildozer android clean;
           else
@@ -67,4 +67,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
