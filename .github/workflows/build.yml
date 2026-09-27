@@ -29,27 +29,21 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
 
-        # 2. Prepare C-parsing prerequisites natively into the environment 
-        mkdir -p /tmp/p4a_host_deps
-        pip install pycparser cffi cython --target=/tmp/p4a_host_deps --break-system-packages
+        # 2. Supply host prerequisites explicitly to the runner container
+        pip install --upgrade pip setuptools wheel --break-system-packages
+        pip install pycparser cffi cython --break-system-packages
 
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX: Keep keyword as 'pygame' to use the native recipe, but we point the URL to pygame-ce below.
-          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pymunk|g' buildozer.spec
+          # 3. FIX: Re-introduce pycparser and cffi into requirements so p4a builds cross-compiled versions
+          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Redirect the native 'pygame' recipe to pull down Pygame-CE source code
+        # 4. Point the native pygame recipe to pull down Pygame-CE source code
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 5. Route Pymunk to a modern NDK-compliant version
-        export P4A_pymunk_version="6.10.0"
-
-        # 6. Inject the isolated directory into PYTHONPATH for validation loops
-        export PYTHONPATH="/tmp/p4a_host_deps:$PYTHONPATH"
-
-        # 7. Compile the app cleanly 
+        # 5. Compile the app cleanly 
         yes | buildozer -v android debug
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
