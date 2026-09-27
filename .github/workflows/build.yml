@@ -34,17 +34,16 @@ jobs:
         pip install pycparser --target=/tmp/p4a_host_deps --break-system-packages
 
         if [ -f "buildozer.spec" ]; then
-          # 3. FIX Python Version & Set Pymunk Requirements
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          # 3. FIX: Swapped legacy 'pygame' for 'pygame-ce' to resolve NDK internal toolchain crashes
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame-ce,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
 
-        # 4. Explicitly pull pygame-ce source distributions via recipe parameters
-        export P4A_pygame_version="main"
-        export P4A_pygame_url="git+https://github.com"
+        # 4. Explicitly route python-for-android to build the community distribution
+        export P4A_pygame_ce_version="main"
+        export P4A_pygame_ce_url="git+https://github.com"
 
-        # 5. Inject ONLY the isolated directory into PYTHONPATH
-        # This gives hostpython3 access to pycparser without breaking internal 'wheel' bindings.
+        # 5. Inject the isolated directory into PYTHONPATH for hostpython3 validation loops
         export PYTHONPATH="/tmp/p4a_host_deps:$PYTHONPATH"
 
         # 6. Compile the app cleanly 
