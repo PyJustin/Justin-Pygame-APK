@@ -74,3 +74,4 @@ jobs:
         name: android-apk
         path: ${{ steps.buildozer.outputs.filename }}
         if-no-files-found: error
+
