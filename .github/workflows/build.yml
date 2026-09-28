@@ -27,21 +27,19 @@ jobs:
       run: |
         cat << 'EOF' > patch_and_build.sh
         #!/bin/bash
-        
-        # We temporarily remove 'set -e' so the script doesn't crash 
-        # before we can read the hidden error log files.
-        set +e
+        set -e
         
         git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
         rm -rf bin/
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
         
-        # 1. Inject prerequisites into the active virtual environment sandbox
+        # 1. Cleanly isolate pycparser into a dedicated directory
+        mkdir -p /tmp/p4a_host_deps
         /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
-        /home/user/.venv/bin/pip install pycparser cffi cython
+        /home/user/.venv/bin/pip install pycparser cffi cython --target=/tmp/p4a_host_deps
         
-        # 2. Match your working requirements baseline and append packages
+        # 2. Match your working requirements baseline
         if [ -f "buildozer.spec" ]; then
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
@@ -53,40 +51,29 @@ jobs:
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security"
         export P4A_pymunk_version="6.10.0"
         
-        # 4. Clean old build distribution fragments if present
+        # 4. Inject ONLY the isolated directory into PYTHONPATH
+        # This gives hostpython3 access to pycparser without breaking virtualenv paths.
+        export PYTHONPATH="/tmp/p4a_host_deps:$PYTHONPATH"
+        
+        # 5. Clean old build distribution fragments if present
         if [ -d ".buildozer/android/platform/python-for-android" ]; then
           buildozer android clean
         else
           rm -rf .buildozer/
         fi
         
-        # 5. Initialize the buildozer platform tools quietly to download structures
+        # 6. Initialize the buildozer platform tools quietly to download structures
         yes | buildozer android p4a -- --help || true
         
-        # 6. Override the internal python-for-android recipe seamlessly
+        # 7. Override the internal python-for-android recipe seamlessly
         P4A_RECIPE_DIR=$(find / -name "recipes" -type d -path "*pythonforandroid*" | head -n 1)
         if [ -d "$P4A_RECIPE_DIR" ] && [ -d "p4a-temp/pythonforandroid/recipes/pymunk" ]; then
           cp -r p4a-temp/pythonforandroid/recipes/pymunk "$P4A_RECIPE_DIR/"
         fi
         rm -rf p4a-temp
         
-        # 7. Compile the app cleanly 
+        # 8. Compile the app cleanly 
         yes | buildozer -v android debug
-        BUILD_STATUS=$?
-        
-        # 8. DIAGNOSTIC HOOK: If the build failed, print out the actual hidden compiler errors
-        if [ $BUILD_STATUS -ne 0 ]; then
-          echo "=========================================================="
-          echo "!!! BUILD FAILED: PRINTING DETAILED COMPILER ERROR LOGS !!!"
-          echo "=========================================================="
-          
-          # Find and print out any config.log or build logs from the build directories
-          find .buildozer/ -name "config.log" -exec echo "--- {} ---" \; -exec tail -n 100 {} \;
-          find .buildozer/ -name "*.pyc" -prune -o -name "*build*.log" -exec echo "--- {} ---" \; -exec tail -n 100 {} \;
-          
-          exit $BUILD_STATUS
-        fi
-        
         EOF
         chmod +x patch_and_build.sh
 
@@ -105,3 +92,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
