@@ -9,86 +9,51 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: Checkout Game Code
       uses: actions/checkout@v4
 
-    - name: Fetch Pymunk Build Recipe Natively
-      uses: actions/checkout@v4
+    - name: Set up System Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libgdbm-dev libssl-dev libffi-dev cmake gettext \
+          libltdl-dev apksigner ccache
+
+    - name: Set up Python Runtime
+      uses: actions/setup-python@v5
       with:
-        repository: kivy/python-for-android
-        path: p4a-temp
-        sparse-checkout: |
-          pythonforandroid/recipes/pymunk
+        python-version: '3.11'
 
-    - name: Move Recipe Files into Workspace
+    - name: Install Python Build Dependencies
       run: |
-        mkdir -p p4a-recipes
-        mv p4a-temp/pythonforandroid/recipes/pymunk p4a-recipes/
-        rm -rf p4a-temp
+        pip install --upgrade pip setuptools wheel
+        pip install pycparser cffi cython buildozer
 
-    - name: Create Native Build Script
+    - name: Patch buildozer.spec and Compile
       run: |
-        cat << 'EOF' > patch_and_build.sh
-        #!/bin/bash
-        set -e
-        
-        git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
+        # 1. Clear out local and hidden environment caches to block bad wheels
         rm -rf bin/
-        rm -rf /github/home/.cache/pip/*
-        rm -rf /root/.cache/pip/*
-        
-        # 1. Seed dependencies inside Buildozer's inner virtual environment
-        /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
-        /home/user/.venv/bin/pip install pycparser cffi cython
-        
-        # 2. FIX: Pin explicitly to Python 3.11.10 to bypass both the 3.14 header crashes 
-        # and the unhealthily failing 503 download backend mirrors!
+        rm -rf ~/.cache/pip/*
+
         if [ -f "buildozer.spec" ]; then
-          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          # 2. Set clean app requirements (omitting explicit version hashes lets the toolchain match natively)
+          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
-        
+
         # 3. Environment overrides for Pygame-CE and Pymunk Compilation
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
-        export P4A_pymunk_version="6.10.0"
         
         # Lower compilation strictness for Pymunk's static C structures
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
-        
-        # 4. Flush out old platform artifacts if present
-        if [ -d ".buildozer/android/platform/python-for-android" ]; then
-          buildozer android clean
-        else
-          rm -rf .buildozer/
-        fi
-        
-        # 5. Initialize the buildozer platform tools quietly
-        yes | buildozer android p4a -- --help || true
-        
-        # 6. Override the internal python-for-android recipe directory with our modern script
-        P4A_RECIPE_DIR=$(find / -name "recipes" -type d -path "*pythonforandroid*" | head -n 1)
-        if [ -d "$P4A_RECIPE_DIR" ] && [ -d "p4a-recipes/pymunk" ]; then
-          cp -r p4a-recipes/pymunk "$P4A_RECIPE_DIR/"
-        fi
-        
-        # 7. Compile the app cleanly 
-        yes | buildozer -v android debug
-        EOF
-        chmod +x patch_and_build.sh
 
-    - name: Compile App inside Buildozer Container
-      uses: docker://ghcr.io/kivy/buildozer:latest
-      with:
-        entrypoint: /bin/bash
-        args: ./patch_and_build.sh
-      env:
-        BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
-        BUILDOZER_WARN_ON_ROOT: "0"
+        # 4. Compile the app cleanly using the stable host environment toolchain
+        yes | buildozer -v android debug
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
@@ -96,3 +61,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
