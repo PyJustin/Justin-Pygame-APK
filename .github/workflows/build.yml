@@ -40,20 +40,24 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
         
-        # 1. Install prerequisites inside the container virtual environment
+        # 1. Force install pycparser, cffi, and cython straight into the global and virtual environments
+        pip install --upgrade pip setuptools wheel --break-system-packages
+        pip install pycparser cffi cython --break-system-packages
         /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
         /home/user/.venv/bin/pip install pycparser cffi cython
         
-        # 2. Patch your requirements configuration baseline
+        # 2. FIX: Let Buildozer handle target python version natively to avoid the 503 server error
         if [ -f "buildozer.spec" ]; then
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
         
-        # 3. Set compiler environment flags
+        # 3. Environment overrides for Pygame-CE and Pymunk Compilation
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
         export P4A_pymunk_version="6.10.0"
+        
+        # Relax compilation strictness for Pymunk's internal C-bindings
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
         
@@ -64,7 +68,7 @@ jobs:
           rm -rf .buildozer/
         fi
         
-        # 5. Bootstrap Buildozer to force download and unpack the hostpython3 source tree framework
+        # 5. Initialize the buildozer platform tools quietly
         yes | buildozer android p4a -- --help || true
         
         # 6. Override the internal python-for-android recipe directory with our modern script
@@ -73,15 +77,7 @@ jobs:
           cp -r p4a-recipes/pymunk "$P4A_RECIPE_DIR/"
         fi
         
-        # 7. FIX: Force inject pycparser and cffi straight into hostpython3's newly unpacked, isolated target directories
-        # This guarantees hostpython3 finds them internally during metadata compilation tasks!
-        HOST_PYTHON_SRC=$(find .buildozer/ -name "hostpython3" -type d -path "*other_builds*" | head -n 1)
-        if [ -d "$HOST_PYTHON_SRC" ]; then
-          echo "Found hostpython build path, injecting dependencies..."
-          pip install pycparser cffi --target="$HOST_PYTHON_SRC/desktop/hostpython3/native-build/root/usr/local/lib/python3.10/site-packages" --break-system-packages || true
-        fi
-        
-        # 8. Compile the app cleanly 
+        # 7. Compile the app cleanly 
         yes | buildozer -v android debug
         EOF
         chmod +x patch_and_build.sh
@@ -101,4 +97,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
