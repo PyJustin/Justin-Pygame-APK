@@ -27,7 +27,10 @@ jobs:
       run: |
         cat << 'EOF' > patch_and_build.sh
         #!/bin/bash
-        set -e
+        
+        # We temporarily remove 'set -e' so the script doesn't crash 
+        # before we can read the hidden error log files.
+        set +e
         
         git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
         rm -rf bin/
@@ -38,8 +41,7 @@ jobs:
         /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
         /home/user/.venv/bin/pip install pycparser cffi cython
         
-        # 2. Match your working requirements baseline and EXPLICITLY append pycparser and cffi
-        # This forces hostpython3 to install them into its own isolated environment block.
+        # 2. Match your working requirements baseline and append packages
         if [ -f "buildozer.spec" ]; then
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
@@ -70,6 +72,21 @@ jobs:
         
         # 7. Compile the app cleanly 
         yes | buildozer -v android debug
+        BUILD_STATUS=$?
+        
+        # 8. DIAGNOSTIC HOOK: If the build failed, print out the actual hidden compiler errors
+        if [ $BUILD_STATUS -ne 0 ]; then
+          echo "=========================================================="
+          echo "!!! BUILD FAILED: PRINTING DETAILED COMPILER ERROR LOGS !!!"
+          echo "=========================================================="
+          
+          # Find and print out any config.log or build logs from the build directories
+          find .buildozer/ -name "config.log" -exec echo "--- {} ---" \; -exec tail -n 100 {} \;
+          find .buildozer/ -name "*.pyc" -prune -o -name "*build*.log" -exec echo "--- {} ---" \; -exec tail -n 100 {} \;
+          
+          exit $BUILD_STATUS
+        fi
+        
         EOF
         chmod +x patch_and_build.sh
 
@@ -88,4 +105,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
