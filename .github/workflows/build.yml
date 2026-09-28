@@ -15,11 +15,20 @@ jobs:
     - name: Checkout Game Code
       uses: actions/checkout@v4
 
-    - name: Fetch Patch Files Natively on Host
+    - name: Fetch Pymunk Build Recipe Natively
+      # Uses GitHub's native git action layer to bypass curl/domain bugs entirely
+      uses: actions/checkout@v4
+      with:
+        repository: kivy/python-for-android
+        path: p4a-temp
+        sparse-checkout: |
+          pythonforandroid/recipes/pymunk
+
+    - name: Move Recipe Files into Workspace
       run: |
-        # Download the modern, NDK-compliant recipe folder setup into the host directory
-        mkdir -p p4a-recipes/pymunk
-        curl -sL "https://githubusercontent.com" -o p4a-recipes/pymunk/__init__.py
+        mkdir -p p4a-recipes
+        mv p4a-temp/pythonforandroid/recipes/pymunk p4a-recipes/
+        rm -rf p4a-temp
 
     - name: Create Native Build Script
       run: |
@@ -91,4 +100,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
