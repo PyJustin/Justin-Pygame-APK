@@ -37,12 +37,12 @@ jobs:
         rm -rf bin/
         rm -rf ~/.cache/pip/*
 
-        # 1. Install pycparser, cffi, and pymunk locally into your game's root directory.
+        # 1. Force install pycparser, cffi, and pymunk locally into your game's root directory.
         pip install --target=. pycparser cffi pymunk==6.10.0
 
         if [ -f "buildozer.spec" ]; then
-          # 2. FIX: Pin requirements directly to stable Python 3.11.10 to bypass the 3.14 compiler errors
-          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius|g' buildozer.spec
+          # 2. FIX: Locked down to your working Python 3.10.12 setup baseline to cure longintrepr.h
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
         fi
@@ -51,7 +51,8 @@ jobs:
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
 
-        # 4. FIX: Reroute the core python3 download to GitHub to completely avoid the unhealthy 503 server mirrors
+        # 4. FIX: Safely pull the core Python 3.10.12 compilation tree source directly from GitHub's releases infrastructure
+        # This completely skips the broken 503 backend mirrors while keeping your required version layout!
         export P4A_python3_url="https://github.com"
         
         # Relax compilation strictness for static C bindings
