@@ -15,13 +15,11 @@ jobs:
     - name: Checkout Game Code
       uses: actions/checkout@v4
 
-    - name: Fetch Pymunk Build Recipe Natively
-      uses: actions/checkout@v4
-      with:
-        repository: kivy/python-for-android
-        path: p4a-temp
-        sparse-checkout: |
-          pythonforandroid/recipes/pymunk
+    - name: Fetch Patch Files Natively on Host
+      run: |
+        # Download the modern, NDK-compliant recipe folder setup into the host directory
+        mkdir -p p4a-recipes/pymunk
+        curl -sL "https://githubusercontent.com" -o p4a-recipes/pymunk/__init__.py
 
     - name: Create Native Build Script
       run: |
@@ -34,7 +32,7 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
         
-        # 1. Cleanly isolate pycparser into a dedicated directory
+        # 1. Inject prerequisites into the active virtual environment sandbox
         mkdir -p /tmp/p4a_host_deps
         /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
         /home/user/.venv/bin/pip install pycparser cffi cython --target=/tmp/p4a_host_deps
@@ -45,14 +43,16 @@ jobs:
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
         fi
         
-        # 3. Environment overrides for Pygame-CE and Pymunk
+        # 3. Environment overrides for Pygame-CE and Pymunk Compilation
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
-        export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security"
         export P4A_pymunk_version="6.10.0"
         
-        # 4. Inject ONLY the isolated directory into PYTHONPATH
-        # This gives hostpython3 access to pycparser without breaking virtualenv paths.
+        # Fix missing function warnings inside Chipmunk C codebase for Android LLVM
+        export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
+        export LDFLAGS="-lm"
+        
+        # 4. Inject the isolated directory into PYTHONPATH
         export PYTHONPATH="/tmp/p4a_host_deps:$PYTHONPATH"
         
         # 5. Clean old build distribution fragments if present
@@ -65,12 +65,11 @@ jobs:
         # 6. Initialize the buildozer platform tools quietly to download structures
         yes | buildozer android p4a -- --help || true
         
-        # 7. Override the internal python-for-android recipe seamlessly
+        # 7. Override the internal python-for-android recipe directory with our modern script
         P4A_RECIPE_DIR=$(find / -name "recipes" -type d -path "*pythonforandroid*" | head -n 1)
-        if [ -d "$P4A_RECIPE_DIR" ] && [ -d "p4a-temp/pythonforandroid/recipes/pymunk" ]; then
-          cp -r p4a-temp/pythonforandroid/recipes/pymunk "$P4A_RECIPE_DIR/"
+        if [ -d "$P4A_RECIPE_DIR" ] && [ -d "p4a-recipes/pymunk" ]; then
+          cp -r p4a-recipes/pymunk "$P4A_RECIPE_DIR/"
         fi
-        rm -rf p4a-temp
         
         # 8. Compile the app cleanly 
         yes | buildozer -v android debug
