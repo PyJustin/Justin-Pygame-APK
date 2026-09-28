@@ -16,7 +16,6 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Fetch Pymunk Build Recipe Natively
-      # Uses GitHub's native git action layer to bypass curl/domain bugs entirely
       uses: actions/checkout@v4
       with:
         repository: kivy/python-for-android
@@ -41,10 +40,14 @@ jobs:
         rm -rf /github/home/.cache/pip/*
         rm -rf /root/.cache/pip/*
         
-        # 1. Inject prerequisites into the active virtual environment sandbox
-        mkdir -p /tmp/p4a_host_deps
+        # 1. FIX: Force install pycparser and cffi straight into the global container environment
+        # Using --break-system-packages guarantees exposure across all internal sub-environments.
+        pip install --upgrade pip setuptools wheel --break-system-packages
+        pip install pycparser cffi cython --break-system-packages
+        
+        # Also mirror the packages inside Buildozer's inner virtualenv for safety
         /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
-        /home/user/.venv/bin/pip install pycparser cffi cython --target=/tmp/p4a_host_deps
+        /home/user/.venv/bin/pip install pycparser cffi cython
         
         # 2. Match your working requirements baseline
         if [ -f "buildozer.spec" ]; then
@@ -57,30 +60,27 @@ jobs:
         export P4A_pygame_url="git+https://github.com"
         export P4A_pymunk_version="6.10.0"
         
-        # Fix missing function warnings inside Chipmunk C codebase for Android LLVM
+        # Relax compilation strictness for Pymunk's internal C-bindings
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
         
-        # 4. Inject the isolated directory into PYTHONPATH
-        export PYTHONPATH="/tmp/p4a_host_deps:$PYTHONPATH"
-        
-        # 5. Clean old build distribution fragments if present
+        # 4. Clean old build distribution fragments if present
         if [ -d ".buildozer/android/platform/python-for-android" ]; then
           buildozer android clean
         else
           rm -rf .buildozer/
         fi
         
-        # 6. Initialize the buildozer platform tools quietly to download structures
+        # 5. Initialize the buildozer platform tools quietly to download structures
         yes | buildozer android p4a -- --help || true
         
-        # 7. Override the internal python-for-android recipe directory with our modern script
+        # 6. Override the internal python-for-android recipe directory with our modern script
         P4A_RECIPE_DIR=$(find / -name "recipes" -type d -path "*pythonforandroid*" | head -n 1)
         if [ -d "$P4A_RECIPE_DIR" ] && [ -d "p4a-recipes/pymunk" ]; then
           cp -r p4a-recipes/pymunk "$P4A_RECIPE_DIR/"
         fi
         
-        # 8. Compile the app cleanly 
+        # 7. Compile the app cleanly 
         yes | buildozer -v android debug
         EOF
         chmod +x patch_and_build.sh
