@@ -9,56 +9,68 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Game Code
       uses: actions/checkout@v4
 
-    - name: Set up System Dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev \
-          libncurses5-dev libgdbm-dev libssl-dev libffi-dev cmake gettext \
-          libltdl-dev apksigner ccache
-
-    - name: Set up Python Runtime
-      uses: actions/setup-python@v5
+    - name: Fetch Pymunk Build Recipe Natively
+      uses: actions/checkout@v4
       with:
-        python-version: '3.11'
+        repository: kivy/python-for-android
+        path: p4a-temp
+        sparse-checkout: |
+          pythonforandroid/recipes/pymunk
 
-    - name: Install Python Build Dependencies
+    - name: Move Recipe Files into Workspace
       run: |
-        pip install --upgrade pip setuptools wheel
-        pip install pycparser cffi cython buildozer
+        mkdir -p p4a-recipes
+        mv p4a-temp/pythonforandroid/recipes/pymunk p4a-recipes/
+        rm -rf p4a-temp
 
-    - name: Patch buildozer.spec and Compile
-      run: |
-        # 1. Clear out local and hidden environment caches to block bad wheels
-        rm -rf bin/
-        rm -rf ~/.cache/pip/*
-
-        if [ -f "buildozer.spec" ]; then
-          # 2. Set clean app requirements (omitting explicit version hashes lets the toolchain match natively)
-          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
-          sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
-        fi
-
-        # 3. Environment overrides for Pygame-CE and Pymunk Compilation
-        export P4A_pygame_version="main"
-        export P4A_pygame_url="git+https://github.com"
-        
-        # Lower compilation strictness for Pymunk's static C structures
-        export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
-        export LDFLAGS="-lm"
-
-        # 4. Compile the app cleanly using the stable host environment toolchain
-        yes | buildozer -v android debug
+    - name: Build APK via Pre-Bundled Toolchain Action
+      # This action features fully pre-baked SDK/NDK layouts, completely bypassing external 503 mirror downloads
+      uses: ArtemSBulgakov/buildozer-action@v1
+      id: buildozer
+      with:
+        buildozer_version: stable
+        command: |
+          # 1. Inject dependencies natively into the pipeline virtual environment
+          pip install --upgrade pip setuptools wheel
+          pip install pycparser cffi cython
+          
+          # 2. Patch your requirements configuration baseline
+          if [ -f "buildozer.spec" ]; then
+            sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
+            sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
+          fi
+          
+          # 3. Apply Environment overrides for Pygame-CE and Pymunk Compilation
+          export P4A_pygame_version="main"
+          export P4A_pygame_url="git+https://github.com"
+          export P4A_pymunk_version="6.10.0"
+          
+          # 4. Relax compiler rules for static Chipmunk C libraries
+          export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
+          export LDFLAGS="-lm"
+          
+          # 5. Bootstrap buildozer tools to build recipe maps
+          yes | buildozer android p4a -- --help || true
+          
+          # 6. Override the internal python-for-android recipe directory with our modern script
+          P4A_RECIPE_DIR=$(find / -name "recipes" -type d -path "*pythonforandroid*" | head -n 1)
+          if [ -d "$P4A_RECIPE_DIR" ] && [ -d "p4a-recipes/pymunk" ]; then
+            cp -r p4a-recipes/pymunk "$P4A_RECIPE_DIR/"
+          fi
+          
+          # 7. Compile the app cleanly
+          yes | buildozer android debug
+        repository_owner: ${{ github.repository_owner }}
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: android-apk
-        path: bin/*.apk
+        path: ${{ steps.buildozer.outputs.filename }}
         if-no-files-found: error
-
