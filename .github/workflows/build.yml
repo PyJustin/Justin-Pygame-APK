@@ -63,9 +63,10 @@ jobs:
         export P4A_pygame_url="git+https://github.com"
         export P4A_pymunk_version="6.10.0"
         
-        # 2. FIX: Force python-for-android to bypass the broken 503 download mirrors
-        # This redirects the core toolchain to pull directly from the active GitHub source stream!
+        # 2. FIX: Force python-for-android to pull the main runtime source archive from GitHub
+        # instead of the broken, unhealthy third-party self-hosted mirror links!
         export P4A_SOURCE_URL="https://github.com"
+        export P4A_python3_url="https://github.com"
 
         # 3. Relax compilation rules for static C bindings
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
