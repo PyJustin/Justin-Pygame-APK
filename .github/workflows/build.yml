@@ -23,39 +23,61 @@ jobs:
         sparse-checkout: |
           pythonforandroid/recipes/pymunk
 
-    - name: Patch buildozer.spec and Compile inside Container
+    - name: Create Native Build Script
+      run: |
+        # We write a clean shell script directly on the host to avoid any inline YAML escaping bugs
+        cat << 'EOF' > patch_and_build.sh
+        #!/bin/bash
+        set -e
+        
+        git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK
+        rm -rf bin/
+        rm -rf /github/home/.cache/pip/*
+        rm -rf /root/.cache/pip/*
+        
+        # 1. Inject prerequisites into the active virtual environment sandbox
+        /home/user/.venv/bin/pip install --upgrade pip setuptools wheel
+        /home/user/.venv/bin/pip install pycparser cffi cython
+        
+        # 2. Match your working requirements baseline
+        if [ -f "buildozer.spec" ]; then
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pymunk|g' buildozer.spec
+          sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
+        fi
+        
+        # 3. Environment overrides for Pygame-CE and Pymunk
+        export P4A_pygame_version="main"
+        export P4A_pygame_url="git+https://github.com"
+        export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security"
+        export P4A_pymunk_version="6.10.0"
+        
+        # 4. Clean old build distribution fragments if present
+        if [ -d ".buildozer/android/platform/python-for-android" ]; then
+          buildozer android clean
+        else
+          rm -rf .buildozer/
+        fi
+        
+        # 5. Initialize the buildozer platform tools quietly to download structures
+        yes | buildozer android p4a -- --help || true
+        
+        # 6. Override the internal python-for-android recipe seamlessly
+        P4A_RECIPE_DIR=$(find / -name "recipes" -type d -path "*pythonforandroid*" | head -n 1)
+        if [ -d "$P4A_RECIPE_DIR" ] && [ -d "p4a-temp/pythonforandroid/recipes/pymunk" ]; then
+          cp -r p4a-temp/pythonforandroid/recipes/pymunk "$P4A_RECIPE_DIR/"
+        fi
+        rm -rf p4a-temp
+        
+        # 7. Compile the app cleanly 
+        yes | buildozer -v android debug
+        EOF
+        chmod +x patch_and_build.sh
+
+    - name: Compile App inside Buildozer Container
       uses: docker://ghcr.io/kivy/buildozer:latest
       with:
         entrypoint: /bin/bash
-        args: >
-          -c "
-          git config --global --add safe.directory /__w/Justin-Pygame-APK/Justin-Pygame-APK &&
-          rm -rf bin/ &&
-          rm -rf /github/home/.cache/pip/* &&
-          rm -rf /root/.cache/pip/* &&
-          /home/user/.venv/bin/pip install --upgrade pip setuptools wheel &&
-          /home/user/.venv/bin/pip install pycparser cffi cython &&
-          if [ -f 'buildozer.spec' ]; then
-            sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pymunk|g' buildozer.spec &&
-            sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec;
-          fi &&
-          export P4A_pygame_version='main' &&
-          export P4A_pygame_url='git+https://github.com' &&
-          export CFLAGS='-Wno-implicit-function-declaration -Wno-error=format-security' &&
-          export P4A_pymunk_version='6.10.0' &&
-          if [ -d '.buildozer/android/platform/python-for-android' ]; then
-            buildozer android clean;
-          else
-            rm -rf .buildozer/;
-          fi &&
-          yes | buildozer android p4a -- --help || true &&
-          P4A_RECIPE_DIR=\$(find / -name \"recipes\" -type d -path \"*pythonforandroid*\" | head -n 1) &&
-          if [ -d \"\$P4A_RECIPE_DIR\" ]; then
-            cp -r p4a-temp/pythonforandroid/recipes/pymunk \"\$P4A_RECIPE_DIR/\";
-          fi &&
-          rm -rf p4a-temp &&
-          yes | buildozer -v android debug
-          "
+        args: ./patch_and_build.sh
       env:
         BUILDOZER_ALLOW_ORG_DOCS_AND_ROOT: "1"
         BUILDOZER_WARN_ON_ROOT: "0"
