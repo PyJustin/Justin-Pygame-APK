@@ -37,30 +37,28 @@ jobs:
         rm -rf bin/
         rm -rf ~/.cache/pip/*
 
-        # 1. FIX: Force install pycparser, cffi, and pymunk locally into your game's root directory.
-        # This downloads pre-compiled modern binary wheels straight from PyPI via GitHub's working connection,
-        # completely bypassing python-for-android's broken 503 recipe download servers!
+        # 1. Install pycparser, cffi, and pymunk locally into your game's root directory.
         pip install --target=. pycparser cffi pymunk==6.10.0
 
         if [ -f "buildozer.spec" ]; then
-          # 2. FIX: Reset requirements strictly back to your working pygame baseline.
-          # Removing pymunk/cffi here forces python-for-android to bypass the unhealthy servers completely.
-          sed -i 's|^requirements = .*|requirements = python3,pygame,pyjnius|g' buildozer.spec
+          # 2. FIX: Pin requirements directly to stable Python 3.11.10 to bypass the 3.14 compiler errors
+          sed -i 's|^requirements = .*|requirements = python3==3.11.10,hostpython3==3.11.10,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
-          
-          # Ensure local recipes lines are turned off to prevent path confusion
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
         fi
 
         # 3. Route Pygame-CE variables safely
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
+
+        # 4. FIX: Reroute the core python3 download to GitHub to completely avoid the unhealthy 503 server mirrors
+        export P4A_python3_url="https://github.com"
         
         # Relax compilation strictness for static C bindings
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
-        # 4. Build cleanly
+        # 5. Build cleanly
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
