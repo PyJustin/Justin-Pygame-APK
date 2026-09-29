@@ -1,4 +1,3 @@
-
 name: Build Android App with Buildozer
 
 on:
@@ -47,16 +46,23 @@ jobs:
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
           
-          # 3. FIX GRADLE ASSEMBLY: Pin SDK targets and enforce NDK API compliance
-          sed -i 's|^#\?android.api = .*|android.api = 34|g' buildozer.spec
-          sed -i 's|^#\?android.minapi = .*|android.minapi = 21|g' buildozer.spec
+          # 3. Comment out old SDK configuration lines to clear the space
+          sed -i 's|^android.api =|# android.api =|g' buildozer.spec
+          sed -i 's|^android.minapi =|# android.minapi =|g' buildozer.spec
+          sed -i 's|^android.ndk_api =|# android.ndk_api =|g' buildozer.spec
+          sed -i 's|^android.gradle_version =|# android.gradle_version =|g' buildozer.spec
           
-          # This forces python-for-android to wrap assets using valid modern tools
-          sed -i 's|^#\?android.ndk_api = .*|android.ndk_api = 23|g' buildozer.spec
-          sed -i 's|^#\?android.gradle_version = .*|android.gradle_version = 8.0|g' buildozer.spec
+          # 4. FIX GRADLE ASSEMBLY: Append exact target parameters to the very end of the file.
+          # This forces Buildozer to read valid SDK / NDK parameters and updates the build loop.
+          echo "" >> buildozer.spec
+          echo "[app:android]" >> buildozer.spec
+          echo "android.api = 34" >> buildozer.spec
+          echo "android.minapi = 21" >> buildozer.spec
+          echo "android.ndk_api = 23" >> buildozer.spec
+          echo "android.gradle_version = 8.0" >> buildozer.spec
         fi
 
-        # 4. Pull Python 3.10 source trees safely via GitHub infrastructure mirrors
+        # 5. Pull Python 3.10 source trees safely via GitHub infrastructure mirrors
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
         export P4A_python3_url="https://github.com"
@@ -65,7 +71,7 @@ jobs:
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
-        # 5. Compile the app cleanly
+        # 6. Compile the app cleanly
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
@@ -74,3 +80,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
