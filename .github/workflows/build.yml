@@ -1,3 +1,4 @@
+
 name: Build Android App with Buildozer
 
 on:
@@ -46,9 +47,12 @@ jobs:
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
           
-          # 3. FIX GRADLE ASSEMBLY: Synchronize modern target APIs to stop gradlew crashes
+          # 3. FIX GRADLE ASSEMBLY: Pin SDK targets and enforce NDK API compliance
           sed -i 's|^#\?android.api = .*|android.api = 34|g' buildozer.spec
           sed -i 's|^#\?android.minapi = .*|android.minapi = 21|g' buildozer.spec
+          
+          # This forces python-for-android to wrap assets using valid modern tools
+          sed -i 's|^#\?android.ndk_api = .*|android.ndk_api = 23|g' buildozer.spec
           sed -i 's|^#\?android.gradle_version = .*|android.gradle_version = 8.0|g' buildozer.spec
         fi
 
