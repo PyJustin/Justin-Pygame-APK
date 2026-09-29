@@ -88,38 +88,38 @@ jobs:
         # 6. Bootstrap Buildozer to unpack the isolated hostpython3 runtime binaries
         yes | buildozer android p4a -- --help || true
 
-        # 7. FIX: Bootstrap pip inside hostpython3, then block runtime sandbox installations
+        # 7. Pre-seed the system level hostpython dependencies
         HOST_PYTHON_BIN=$(find .buildozer/ -name "python" -type f -path "*other_builds/hostpython3*native-build*" | head -n 1)
         if [ -f "$HOST_PYTHON_BIN" ]; then
           echo "Found compiled hostpython binary at: $HOST_PYTHON_BIN"
           curl -sL https://pypa.io -o get-pip.sh
           $HOST_PYTHON_BIN get-pip.sh --break-system-packages || true
           rm -f get-pip.sh
-          
-          # Install dependencies straight into hostpython's main package path
           $HOST_PYTHON_BIN -m pip install pycparser cffi cython --break-system-packages || true
-          
-          # Get the exact location of hostpython's config and site-packages folder
-          HOST_PURE_LIB=$($HOST_PYTHON_BIN -c "import sysconfig; print(sysconfig.get_path('purelib'))" 2>/dev/null || echo "")
-          
-          # Force export this location directly to the environment loop
-          if [ -n "$HOST_PURE_LIB" ]; then
-            export PYTHONPATH="$HOST_PURE_LIB:$PYTHONPATH"
-            
-            # CRITICAL CONFIG: Write a global setuptools configuration file right inside hostpython
-            # This completely blocks it from downloading isolated .eggs containers at runtime!
-            echo -e "[easy_install]\nallow_hosts = None\nfind_links = $HOST_PURE_LIB" > "$HOST_PURE_LIB/../setup.cfg" || true
-            echo -e "[easy_install]\nallow_hosts = None\nfind_links = $HOST_PURE_LIB" > "$HOST_PURE_LIB/setup.cfg" || true
-          fi
         fi
 
-        # 8. Run the final compilation pass
+        # 8. FIX: Force python-for-android to clone and unpack the 'pymunk' workspace repository early.
+        # This initializes the .eggs directory footprint before the final compilation runs.
+        /opt/hostedtoolcache/Python/3.11.16/x64/bin/python -m pythonforandroid.toolchain download_recipes \
+          --requirements=python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk \
+          --local-recipes=./p4a-recipes || true
+
+        # 9. FIX: Force seed pycparser straight inside every unpacked pymunk/cffi .eggs directory.
+        # This guarantees cffi finds pycparser inside its own sandboxed egg folder path!
+        EGGS_PATHS=$(find .buildozer/ -name ".eggs" -type d)
+        for egg_path in $EGGS_PATHS; do
+          if [ -d "$egg_path" ]; then
+            echo "Pre-seeding pycparser into dynamic egg container cache at: $egg_path"
+            pip install pycparser --target="$egg_path" --break-system-packages || true
+            # Also copy inside specific nested folders if setuptools created them early
+            CFFI_EGG=$(find "$egg_path" -name "*cffi*.egg" -type d | head -n 1)
+            if [ -n "$CFFI_EGG" ]; then
+              cp -r "$egg_path/pycparser" "$CFFI_EGG/" || true
+            fi
+          fi
+        done
+
+        # 10. Run the final compilation pass
         yes | buildozer -v android debug
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-apk
-        path: bin/*.apk
-        if-no-files-found: error
-
+      env:
+        PYTHONPATH: "/home/runner/work/Justin-Pygame-APK/Justin-Pygame-APK/p4a-recipes"
