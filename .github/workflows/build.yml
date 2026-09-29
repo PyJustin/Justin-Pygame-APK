@@ -39,20 +39,25 @@ jobs:
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/
 
         if [ -f "buildozer.spec" ]; then
-          # 1. FIX: Reset requirements strictly back to your working pygame baseline.
-          # Removing pymunk/cffi here forces python-for-android to bypass the broken setup_requires scripts completely!
+          # 1. FIX: Keep baseline core recipes clean so python-for-android compiles them smoothly
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
           
-          # 2. Clean up old configuration tokens
+          # 2. FIX: Inject complex parsing libraries as pure target pip dependencies.
+          # This instructs Buildozer's native internal Android-pip installer to cross-compile 
+          # pycparser, cffi, and pymunk straight into the app's private directory structure,
+          # cleanly generating the required '_cffi_backend.so' layer!
+          sed -i 's|^#\?pip_dependencies = .*|pip_dependencies = pycparser,cffi,pymunk==6.10.0|g' buildozer.spec
+          
+          # 3. Clean up old configuration tokens
           sed -i '/^android.api =/d; /^# android.api =/d' buildozer.spec
           sed -i '/^android.minapi =/d; /^# android.minapi =/d' buildozer.spec
           sed -i '/^android.ndk_api =/d; /^# android.ndk_api =/d' buildozer.spec
           sed -i '/^android.build_tools =/d; /^# android.build_tools =/d' buildozer.spec
           sed -i '/^android.gradle_version =/d; /^# android.gradle_version =/d' buildozer.spec
           
-          # 3. Append proper production packaging parameters
+          # 4. Append proper production packaging parameters
           echo "" >> buildozer.spec
           echo "android.api = 34" >> buildozer.spec
           echo "android.build_tools = 34.0.0" >> buildozer.spec
@@ -61,53 +66,20 @@ jobs:
           echo "android.gradle_version = 8.0" >> buildozer.spec
         fi
 
-        # 4. Route source downloads safely via GitHub mirrors
+        # 5. Route source downloads safely via GitHub mirrors
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
         export P4A_python3_url="https://github.com"
         
-        # 5. Fast-track Java tool environments
+        # 6. Fast-track Java tool environments
         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
         export PATH=$JAVA_HOME/bin:$PATH
+        
+        # Force compiler flags down to build targeted ARM binary links
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
-        # 6. Bootstrap Buildozer to cleanly compile your operational baseline layers
-        yes | buildozer android p4a -- --help || true
-
-        # 7. FIX: Force the main toolchain create command to assemble your baseline app directory first
-        # This builds the core app directory footprint cleanly without triggering the pycparser error.
-        /opt/hostedtoolcache/Python/3.11.16/x64/bin/python -m pythonforandroid.toolchain create \
-          --dist_name=myappfunwithpymunk \
-          --bootstrap=sdl2 \
-          --requirements=python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius \
-          --arch=arm64-v8a \
-          --copy-libs \
-          --color=always \
-          --storage-dir=/home/runner/work/Justin-Pygame-APK/Justin-Pygame-APK/.buildozer/android/platform/build-arm64-v8a \
-          --ndk-api=24 \
-          --ignore-setup-py \
-          --debug || true
-
-        # 8. FIX: Direct target injection of binary wheels into Buildozer's private staging folders.
-        # This downloads modern, pre-built binary versions of pymunk and cffi for Python 3.10
-        # and seeds them straight inside your app space so the application can run them on your phone!
-        APP_PRIVATE_DIR="/home/runner/work/Justin-Pygame-APK/Justin-Pygame-APK/.buildozer/android/app"
-        if [ ! -d "$APP_PRIVATE_DIR" ]; then
-          mkdir -p "$APP_PRIVATE_DIR"
-        fi
-        
-        echo "Injecting pre-built binary libraries into app package directory: $APP_PRIVATE_DIR"
-        pip install \
-          --target="$APP_PRIVATE_DIR" \
-          --only-binary=:all: \
-          --platform=android_24_aarch64 \
-          --implementation=cp \
-          --python-version=3.10 \
-          --abi=cp310 \
-          pycparser cffi pymunk==6.10.0
-
-        # 9. Run Buildozer's final pass to package the asset dependencies cleanly into the APK file
+        # 7. Compile the app cleanly
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
