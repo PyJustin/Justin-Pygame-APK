@@ -50,15 +50,17 @@ jobs:
           sed -i 's|^android.api =|# android.api =|g' buildozer.spec
           sed -i 's|^android.minapi =|# android.minapi =|g' buildozer.spec
           sed -i 's|^android.ndk_api =|# android.ndk_api =|g' buildozer.spec
+          sed -i 's|^android.build_tools =|# android.build_tools =|g' buildozer.spec
           sed -i 's|^android.gradle_version =|# android.gradle_version =|g' buildozer.spec
           
           # 4. FIX GRADLE ASSEMBLY: Append exact target parameters to the very end of the file.
-          # This forces Buildozer to read valid SDK / NDK parameters and updates the build loop.
+          # Explicitly pinning build_tools to 34.0.0 keeps Gradle 8.0 from crashing.
           echo "" >> buildozer.spec
           echo "[app:android]" >> buildozer.spec
           echo "android.api = 34" >> buildozer.spec
-          echo "android.minapi = 21" >> buildozer.spec
-          echo "android.ndk_api = 23" >> buildozer.spec
+          echo "android.build_tools = 34.0.0" >> buildozer.spec
+          echo "android.minapi = 24" >> buildozer.spec
+          echo "android.ndk_api = 24" >> buildozer.spec
           echo "android.gradle_version = 8.0" >> buildozer.spec
         fi
 
@@ -80,4 +82,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
