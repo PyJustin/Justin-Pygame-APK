@@ -88,14 +88,14 @@ jobs:
         # 6. Bootstrap Buildozer to unpack the isolated hostpython3 runtime binaries
         yes | buildozer android p4a -- --help || true
 
-        # 7. FIX: Query the compiled sandboxed hostpython binary directly for its site-packages path
-        # and forcefully seed pycparser and cffi inside it before compiling the app modules.
+        # 7. FIX: Programmatically pinpoint the EXACT site-packages target path via sysconfig
+        # This extracts a clean string path completely skipping bracket/list errors.
         HOST_PYTHON_BIN=$(find .buildozer/ -name "python" -type f -path "*other_builds/hostpython3*native-build*" | head -n 1)
         if [ -f "$HOST_PYTHON_BIN" ]; then
           echo "Found compiled hostpython binary at: $HOST_PYTHON_BIN"
-          HOST_SITE_PACKAGES=$($HOST_PYTHON_BIN -c "import sys; print([p for p in sys.path if 'site-packages' in p][0])" 2>/dev/null || echo "")
-          if [ -n "$HOST_SITE_PACKAGES" ]; then
-            echo "Target site-packages directory found: $HOST_SITE_PACKAGES"
+          HOST_SITE_PACKAGES=$($HOST_PYTHON_BIN -c "import sysconfig; print(sysconfig.get_path('purelib'))" 2>/dev/null || echo "")
+          if [ -n "$HOST_SITE_PACKAGES" ] && [ -d "$HOST_SITE_PACKAGES" ]; then
+            echo "Target site-packages path verified: $HOST_SITE_PACKAGES"
             pip install pycparser cffi cython --target="$HOST_SITE_PACKAGES" --break-system-packages || true
           fi
         fi
