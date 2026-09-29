@@ -88,15 +88,21 @@ jobs:
         # 6. Bootstrap Buildozer to unpack the isolated hostpython3 runtime binaries
         yes | buildozer android p4a -- --help || true
 
-        # 7. FIX: Run pip install inside the newly compiled hostpython binary toolchain itself!
-        # This registers cffi natively in hostpython's global index so it stops building isolated sandboxed .eggs
+        # 7. FIX: Bootstrap pip directly inside the newly compiled hostpython binary toolchain using get-pip.py
         HOST_PYTHON_BIN=$(find .buildozer/ -name "python" -type f -path "*other_builds/hostpython3*native-build*" | head -n 1)
         if [ -f "$HOST_PYTHON_BIN" ]; then
           echo "Found compiled hostpython binary at: $HOST_PYTHON_BIN"
-          # Upgrade hostpython's internal pipeline tools
-          $HOST_PYTHON_BIN -m pip install --upgrade pip setuptools wheel || true
-          # Install dependencies inside the hostpython installation workspace root
-          $HOST_PYTHON_BIN -m pip install pycparser cffi cython || true
+          
+          # Download the standalone pip bootstrapper script
+          curl -sL https://pypa.io -o get-pip.sh
+          
+          # Force install pip inside hostpython's internal bin folder
+          $HOST_PYTHON_BIN get-pip.sh --break-system-packages || true
+          rm -f get-pip.sh
+          
+          # Install dependencies using hostpython's fresh pip engine
+          $HOST_PYTHON_BIN -m pip install --upgrade pip setuptools wheel --break-system-packages || true
+          $HOST_PYTHON_BIN -m pip install pycparser cffi cython --break-system-packages || true
         fi
 
         # 8. Run the final compilation pass
@@ -108,3 +114,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
