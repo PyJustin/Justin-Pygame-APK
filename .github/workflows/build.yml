@@ -37,26 +37,24 @@ jobs:
         rm -rf bin/
         rm -rf ~/.cache/pip/*
 
-        # 1. Keep your working pre-bundled Pymunk wheel layout
+        # 1. Pre-bundle your active Pymunk wheel layout locally
         pip install --target=. pycparser cffi pymunk==6.10.0
 
         if [ -f "buildozer.spec" ]; then
-          # 2. Fix the Python target versions to keep C-compilation stable
+          # 2. Keep core C-compilation targets pinned and stable
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
           
-          # 3. Comment out old SDK configuration lines to clear the space
-          sed -i 's|^android.api =|# android.api =|g' buildozer.spec
-          sed -i 's|^android.minapi =|# android.minapi =|g' buildozer.spec
-          sed -i 's|^android.ndk_api =|# android.ndk_api =|g' buildozer.spec
-          sed -i 's|^android.build_tools =|# android.build_tools =|g' buildozer.spec
-          sed -i 's|^android.gradle_version =|# android.gradle_version =|g' buildozer.spec
+          # 3. FIX: Strip out any old or duplicated SDK configurations cleanly
+          sed -i '/^android.api =/d; /^# android.api =/d' buildozer.spec
+          sed -i '/^android.minapi =/d; /^# android.minapi =/d' buildozer.spec
+          sed -i '/^android.ndk_api =/d; /^# android.ndk_api =/d' buildozer.spec
+          sed -i '/^android.build_tools =/d; /^# android.build_tools =/d' buildozer.spec
+          sed -i '/^android.gradle_version =/d; /^# android.gradle_version =/d' buildozer.spec
           
-          # 4. FIX GRADLE ASSEMBLY: Append exact target parameters to the very end of the file.
-          # Explicitly pinning build_tools to 34.0.0 keeps Gradle 8.0 from crashing.
+          # 4. FIX: Append options directly into the main config frame (No [app:android] header)
           echo "" >> buildozer.spec
-          echo "[app:android]" >> buildozer.spec
           echo "android.api = 34" >> buildozer.spec
           echo "android.build_tools = 34.0.0" >> buildozer.spec
           echo "android.minapi = 24" >> buildozer.spec
@@ -64,16 +62,20 @@ jobs:
           echo "android.gradle_version = 8.0" >> buildozer.spec
         fi
 
-        # 5. Pull Python 3.10 source trees safely via GitHub infrastructure mirrors
+        # 5. Route your custom source distributions cleanly
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
         export P4A_python3_url="https://github.com"
         
-        # Relax compilation strictness for static C bindings
+        # 6. FIX: Force the global environment shell to use Java 17 for Gradle compliance
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+        export PATH=$JAVA_HOME/bin:$PATH
+
+        # Relax compilation rules for static C bindings
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
-        # 6. Compile the app cleanly
+        # 7. Build the package
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
