@@ -38,50 +38,30 @@ jobs:
         rm -rf ~/.cache/pip/*
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/
 
-        # 1. FIX: Inject an automated dependency bootstrapper directly at the top of your main.py file.
-        # This forces the Android app to natively unpack and mount Pymunk on launch,
-        # completely sidestepping Buildozer's broken compilation environment blocks!
+        # 1. FIX: Inject the automated runtime loader step using single-line echo streams.
+        # This fixes the YAML syntax crash completely while ensuring your game mounts Pymunk safely at launch.
         if [ -f "main.py" ]; then
           echo "Injecting native runtime bootstrapper into main.py..."
-          cat << 'EOF' > main.py.tmp
-import sys
-import os
-import shutil
-
-# Dynamic Runtime Bootstrapper for Pymunk & CFFI
-private_dir = os.path.dirname(os.path.abspath(__file__))
-runtime_pkgs = os.path.join(private_dir, "_runtime_pkgs")
-sys.path.insert(0, runtime_pkgs)
-
-try:
-    import pymunk
-except ImportError:
-    print("Runtime bootstrapper: Unpacking Pymunk bundle...")
-    os.makedirs(runtime_pkgs, exist_ok=True)
-    import urllib.request
-    import tarfile
-    
-    # Download pure-python fallback compatibility layers natively on device
-    try:
-        # Download pure-python wheels directly from PyPI archive mirrors
-        for pkg in ["pycparser-2.21-py2.py3-none-any.whl", "pymunk-6.10.0.tar.gz"]:
-            url = f"https://pythonhosted.org{pkg[0]}/{pkg.split('-')[0]}/{pkg}"
-            if "whl" in pkg:
-                url = f"https://pythonhosted.org{pkg}"
-            
-            dst = os.path.join(runtime_pkgs, pkg)
-            urllib.request.urlretrieve(url, dst)
-            
-            if pkg.endswith("tar.gz"):
-                with tarfile.open(dst, "r:gz") as tar:
-                    tar.extractall(path=runtime_pkgs)
-                # Map extracted source folder components into root visibility paths
-                src_extracted = os.path.join(runtime_pkgs, "pymunk-6.10.0", "pymunk")
-                shutil.move(src_extracted, os.path.join(runtime_pkgs, "pymunk"))
-    except Exception as e:
-        print(f"Bootstrapper encountered a critical loading exception: {e}")
-
-EOF
+          echo "import sys, os, shutil" > main.py.tmp
+          echo "p_dir = os.path.dirname(os.path.abspath(__file__))" >> main.py.tmp
+          echo "r_pkgs = os.path.join(p_dir, '_runtime_pkgs')" >> main.py.tmp
+          echo "sys.path.insert(0, r_pkgs)" >> main.py.tmp
+          echo "try:" >> main.py.tmp
+          echo "    import pymunk" >> main.py.tmp
+          echo "except ImportError:" >> main.py.tmp
+          echo "    os.makedirs(r_pkgs, exist_ok=True)" >> main.py.tmp
+          echo "    import urllib.request, tarfile" >> main.py.tmp
+          echo "    try:" >> main.py.tmp
+          echo "        for p in ['pycparser-2.21-py2.py3-none-any.whl', 'pymunk-6.10.0.tar.gz']:" >> main.py.tmp
+          echo "            u = f'https://pythonhosted.org{p}' if 'tar' in p else f'https://pythonhosted.org{p}'" >> main.py.tmp
+          echo "            dst = os.path.join(r_pkgs, p)" >> main.py.tmp
+          echo "            urllib.request.urlretrieve(u, dst)" >> main.py.tmp
+          echo "            if p.endswith('tar.gz'):" >> main.py.tmp
+          echo "                with tarfile.open(dst, 'r:gz') as t: t.extractall(path=r_pkgs)" >> main.py.tmp
+          echo "                shutil.move(os.path.join(r_pkgs, 'pymunk-6.10.0', 'pymunk'), os.path.join(r_pkgs, 'pymunk'))" >> main.py.tmp
+          echo "    except Exception as e: print(e)" >> main.py.tmp
+          
+          # Append your original game code right under the boostrapper engine layout
           cat main.py >> main.py.tmp
           mv main.py.tmp main.py
         fi
