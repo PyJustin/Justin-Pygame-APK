@@ -52,20 +52,28 @@ jobs:
         rm -rf ~/.cache/pip/*
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/
 
+        # 1. FIX: Patch the local Pymunk recipe to declare its host requirements.
+        # This tells python-for-android to cross-compile pycparser and cffi straight into 
+        # hostpython3 natively as part of its internal build pipeline!
+        if [ -f "p4a-recipes/pymunk/__init__.py" ]; then
+          echo "Injecting host_dependencies into local Pymunk recipe class..."
+          sed -i "s|class PymunkRecipe(|class PymunkRecipe(\n    host_dependencies = ['pycparser', 'cffi']\n|g" p4a-recipes/pymunk/__init__.py
+        fi
+
         if [ -f "buildozer.spec" ]; then
-          # 1. Enforce python-for-android target requirements
+          # 2. Enforce python-for-android target requirements
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi,pymunk|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^#\?p4a.local_recipes =.*|p4a.local_recipes = ./p4a-recipes|g' buildozer.spec
           
-          # 2. Clean up old configuration tokens
+          # 3. Clean up old configuration tokens
           sed -i '/^android.api =/d; /^# android.api =/d' buildozer.spec
           sed -i '/^android.minapi =/d; /^# android.minapi =/d' buildozer.spec
           sed -i '/^android.ndk_api =/d; /^# android.ndk_api =/d' buildozer.spec
           sed -i '/^android.build_tools =/d; /^# android.build_tools =/d' buildozer.spec
           sed -i '/^android.gradle_version =/d; /^# android.gradle_version =/d' buildozer.spec
           
-          # 3. Append proper production packaging parameters
+          # 4. Append proper production packaging parameters
           echo "" >> buildozer.spec
           echo "android.api = 34" >> buildozer.spec
           echo "android.build_tools = 34.0.0" >> buildozer.spec
@@ -74,52 +82,16 @@ jobs:
           echo "android.gradle_version = 8.0" >> buildozer.spec
         fi
 
-        # 4. Route source downloads safely via GitHub mirrors
+        # 5. Route source downloads safely via GitHub mirrors
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
         export P4A_python3_url="https://github.com"
         
-        # 5. Fast-track Java tool environments
+        # 6. Fast-track Java tool environments
         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
         export PATH=$JAVA_HOME/bin:$PATH
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
-        # 6. Bootstrap Buildozer to unpack the isolated hostpython3 runtime binaries
-        yes | buildozer android p4a -- --help || true
-
-        # 7. FIX: Isolate dependencies and force-seed a universal injection script
-        HOST_PYTHON_BIN=$(find .buildozer/ -name "python" -type f -path "*other_builds/hostpython3*native-build*" | head -n 1)
-        if [ -f "$HOST_PYTHON_BIN" ]; then
-          echo "Found compiled hostpython binary at: $HOST_PYTHON_BIN"
-          
-          # Bootstrap pip directly into hostpython3's internal bin folder
-          curl -sL https://pypa.io -o get-pip.sh
-          $HOST_PYTHON_BIN get-pip.sh --break-system-packages || true
-          rm -f get-pip.sh
-          
-          # Install dependencies straight into hostpython's main package paths
-          $HOST_PYTHON_BIN -m pip install pycparser cffi cython --break-system-packages || true
-          
-          # Programmatically pinpoint the exact site-packages path
-          HOST_PURE_LIB=$($HOST_PYTHON_BIN -c "import sysconfig; print(sysconfig.get_path('purelib'))" 2>/dev/null || echo "")
-          
-          if [ -n "$HOST_PURE_LIB" ] && [ -d "$HOST_PURE_LIB" ]; then
-            echo "Target site-packages directory verified at: $HOST_PURE_LIB"
-            
-            # FIXED: Written as a single-line echo to prevent GitHub Editor from flagging red syntax errors
-            echo "import sys; sys.path.insert(0, '$HOST_PURE_LIB')" > "$HOST_PURE_LIB/sitecustomize.py"
-            echo "sitecustomize.py successfully created inside hostpython targets."
-          fi
-        fi
-
-        # 8. Run the final compilation pass
+        # 7. Run the clean compilation pass
         yes | buildozer -v android debug
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-apk
-        path: bin/*.apk
-        if-no-files-found: error
-
