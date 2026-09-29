@@ -85,10 +85,10 @@ jobs:
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
-        # 6. Bootstrap Buildozer to unpack the isolated hostpython3 runtime binaries and recipes
+        # 6. Bootstrap Buildozer to unpack the isolated hostpython3 runtime binaries
         yes | buildozer android p4a -- --help || true
 
-        # 7. FIX: Bootstrap pip inside hostpython3, then FORCE patch pymunk's setup rules
+        # 7. FIX: Bootstrap pip inside hostpython3, then block runtime sandbox installations
         HOST_PYTHON_BIN=$(find .buildozer/ -name "python" -type f -path "*other_builds/hostpython3*native-build*" | head -n 1)
         if [ -f "$HOST_PYTHON_BIN" ]; then
           echo "Found compiled hostpython binary at: $HOST_PYTHON_BIN"
@@ -96,31 +96,24 @@ jobs:
           $HOST_PYTHON_BIN get-pip.sh --break-system-packages || true
           rm -f get-pip.sh
           
-          # Install pycparser and cffi straight into hostpython's main package path
+          # Install dependencies straight into hostpython's main package path
           $HOST_PYTHON_BIN -m pip install pycparser cffi cython --break-system-packages || true
           
-          # Extract the exact site-packages path of hostpython3
+          # Get the exact location of hostpython's config and site-packages folder
           HOST_PURE_LIB=$($HOST_PYTHON_BIN -c "import sysconfig; print(sysconfig.get_path('purelib'))" 2>/dev/null || echo "")
           
-          # Force export this location directly to the global environment path
+          # Force export this location directly to the environment loop
           if [ -n "$HOST_PURE_LIB" ]; then
             export PYTHONPATH="$HOST_PURE_LIB:$PYTHONPATH"
+            
+            # CRITICAL CONFIG: Write a global setuptools configuration file right inside hostpython
+            # This completely blocks it from downloading isolated .eggs containers at runtime!
+            echo -e "[easy_install]\nallow_hosts = None\nfind_links = $HOST_PURE_LIB" > "$HOST_PURE_LIB/../setup.cfg" || true
+            echo -e "[easy_install]\nallow_hosts = None\nfind_links = $HOST_PURE_LIB" > "$HOST_PURE_LIB/setup.cfg" || true
           fi
         fi
 
-        # 8. CRITICAL PATCH: Delete 'setup_requires' inside pymunk's extracted source tree
-        # This completely stops pymunk from spawning the broken sandboxed .eggs container!
-        PYMUNK_SETUP_FILES=$(find .buildozer/ -name "setup.py" -path "*other_builds/pymunk*")
-        for setup_file in $PYMUNK_SETUP_FILES; do
-          if [ -f "$setup_file" ]; then
-            echo "Patching pymunk configuration script at: $setup_file"
-            sed -i "s|setup_requires=\['cffi'\],||g" "$setup_file"
-            sed -i "s|setup_requires=\['cffi'>=1.1.0'\],||g" "$setup_file"
-            sed -i "s|setup_requires=\[.*\],||g" "$setup_file"
-          fi
-        done
-
-        # 9. Run the final compilation pass
+        # 8. Run the final compilation pass
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
@@ -129,5 +122,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
 
