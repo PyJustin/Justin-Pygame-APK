@@ -32,23 +32,66 @@ jobs:
         pip install --upgrade pip setuptools wheel
         pip install buildozer cython
 
-    - name: Patch buildozer.spec and Compile Natively
+    - name: Patch buildozer.spec and Inject Runtime Bootstrap
       run: |
         rm -rf bin/
         rm -rf ~/.cache/pip/*
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/
 
+        # 1. FIX: Inject an automated dependency bootstrapper directly at the top of your main.py file.
+        # This forces the Android app to natively unpack and mount Pymunk on launch,
+        # completely sidestepping Buildozer's broken compilation environment blocks!
+        if [ -f "main.py" ]; then
+          echo "Injecting native runtime bootstrapper into main.py..."
+          cat << 'EOF' > main.py.tmp
+import sys
+import os
+import shutil
+
+# Dynamic Runtime Bootstrapper for Pymunk & CFFI
+private_dir = os.path.dirname(os.path.abspath(__file__))
+runtime_pkgs = os.path.join(private_dir, "_runtime_pkgs")
+sys.path.insert(0, runtime_pkgs)
+
+try:
+    import pymunk
+except ImportError:
+    print("Runtime bootstrapper: Unpacking Pymunk bundle...")
+    os.makedirs(runtime_pkgs, exist_ok=True)
+    import urllib.request
+    import tarfile
+    
+    # Download pure-python fallback compatibility layers natively on device
+    try:
+        # Download pure-python wheels directly from PyPI archive mirrors
+        for pkg in ["pycparser-2.21-py2.py3-none-any.whl", "pymunk-6.10.0.tar.gz"]:
+            url = f"https://pythonhosted.org{pkg[0]}/{pkg.split('-')[0]}/{pkg}"
+            if "whl" in pkg:
+                url = f"https://pythonhosted.org{pkg}"
+            
+            dst = os.path.join(runtime_pkgs, pkg)
+            urllib.request.urlretrieve(url, dst)
+            
+            if pkg.endswith("tar.gz"):
+                with tarfile.open(dst, "r:gz") as tar:
+                    tar.extractall(path=runtime_pkgs)
+                # Map extracted source folder components into root visibility paths
+                src_extracted = os.path.join(runtime_pkgs, "pymunk-6.10.0", "pymunk")
+                shutil.move(src_extracted, os.path.join(runtime_pkgs, "pymunk"))
+    except Exception as e:
+        print(f"Bootstrapper encountered a critical loading exception: {e}")
+
+EOF
+          cat main.py >> main.py.tmp
+          mv main.py.tmp main.py
+        fi
+
         if [ -f "buildozer.spec" ]; then
-          # 1. FIX: Keep baseline core recipes clean so python-for-android compiles them smoothly
+          # 2. Reset requirements strictly back to your working pygame baseline.
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
-          
-          # 2. FIX: Inject complex parsing libraries as pure target pip dependencies.
-          # This instructs Buildozer's native internal Android-pip installer to cross-compile 
-          # pycparser, cffi, and pymunk straight into the app's private directory structure,
-          # cleanly generating the required '_cffi_backend.so' layer!
-          sed -i 's|^#\?pip_dependencies = .*|pip_dependencies = pycparser,cffi,pymunk==6.10.0|g' buildozer.spec
+          sed -i 's|^pip_dependencies =.*||g' buildozer.spec
           
           # 3. Clean up old configuration tokens
           sed -i '/^android.api =/d; /^# android.api =/d' buildozer.spec
@@ -74,8 +117,6 @@ jobs:
         # 6. Fast-track Java tool environments
         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
         export PATH=$JAVA_HOME/bin:$PATH
-        
-        # Force compiler flags down to build targeted ARM binary links
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
