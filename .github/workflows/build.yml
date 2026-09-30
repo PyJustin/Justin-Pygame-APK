@@ -78,7 +78,7 @@ jobs:
         # 7. Pull the pure-ctypes Pymunk version directly into your folder
         pip install --target=. pymunk==5.7.0 --no-deps
 
-        # 8. FIX: Patch Pymunk's loading sequence to use its standard ctypes ABI path
+        # 8. Patch Pymunk's initialization loading sequence to redirect over the standard ctypes ABI path
         if [ -f "pymunk/__init__.py" ]; then
           echo "Patching Pymunk initialization architecture to run cleanly via ctypes..."
           sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
@@ -86,13 +86,16 @@ jobs:
           sed -i 's|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\ncp = _c_abi.lib|g' pymunk/__init__.py
         fi
 
-        # 9. FIX: Hard-patch the internal optional CFFI statements inside the ABI layout.
-        # This completely strips out the 'import cffi' string layout, preventing it from 
-        # throwing a ModuleNotFoundError on the device without needing fake folders!
+        # 9. FIX: Aggressive universal replacement matching the exact line patterns and line number.
+        # This acts as an absolute blanket block, overriding any hidden trailing comment tags!
         if [ -f "pymunk/_chipmunk_cffi_abi.py" ]; then
-          echo "Hard-patching secondary CFFI dependencies inside ABI layouts..."
-          sed -i 's|import cffi|pass|g' pymunk/_chipmunk_cffi_abi.py
+          echo "Aggressively wiping all internal CFFI module references from ABI layouts..."
+          # Replace any string containing 'import cffi' with a clean 'pass' statement
+          sed -i 's|.*import cffi.*|pass|g' pymunk/_chipmunk_cffi_abi.py
           sed -i 's|ffi = cffi.FFI()|ffi = None|g' pymunk/_chipmunk_cffi_abi.py
+          
+          # Specific targeted line-1465 fallback patch to guarantee exclusion
+          sed -i '1465s|.*|pass|' pymunk/_chipmunk_cffi_abi.py
         fi
 
         # 10. Direct Cross-Compilation and comprehensive binary seeding
@@ -122,8 +125,7 @@ jobs:
         # 11. Compile the app cleanly
         yes | buildozer -v android debug
 
-        # 12. FIX: Hard-verify the .apk file generation layout string inside the pipeline environment.
-        # This forces the GitHub Action step to show a red error instantly if the APK was missed.
+        # 12. Hard-verify the .apk file generation layout string inside the pipeline environment
         ls -la bin/
         if [ ! -f bin/*.apk ] && [ ! -f bin/*.aab ]; then
           echo "ERROR: Buildozer completed but no APK package was generated inside the bin/ directory!"
@@ -136,3 +138,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
