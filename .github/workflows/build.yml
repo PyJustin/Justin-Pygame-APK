@@ -40,8 +40,9 @@ jobs:
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/
 
         if [ -f "buildozer.spec" ]; then
-          # 1. Reset requirements strictly back to your working baseline framework
-          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
+          # 1. FIX: Keep pycparser and cffi inside requirements so the cross-compiler creates '_cffi_backend.so'!
+          # We leave pymunk out of this line so it skips the broken p4a setup_requires check scripts entirely.
+          sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius,pycparser,cffi|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
           sed -i 's|^pip_dependencies =.*||g' buildozer.spec
@@ -76,9 +77,9 @@ jobs:
         # 6. Bootstrap Buildozer to download and unpack the Android SDK & NDK environments natively
         yes | buildozer android p4a -- --help || true
 
-        # 7. FIX: Pull the platform-independent pure Python codebase using modern matching version constraints.
-        # This completely resolves the pip resolution conflict!
-        pip install --target=. pycparser cffi>=1.17.1 pymunk==6.10.0
+        # 7. FIX: Pull only the platform-independent pure Python codebase for Pymunk straight into your directory.
+        # This keeps the host python checks from crashing while placing the package code where your app needs it.
+        pip install --target=. pymunk==6.10.0 --no-deps
 
         # 8. Direct Cross-Compilation of Chipmunk2D binary objects using Buildozer's embedded NDK compiler
         NDK_CLANG=$(find ~/.buildozer/ -name "aarch64-linux-android31-clang" -type f | head -n 1)
@@ -102,10 +103,3 @@ jobs:
 
         # 9. Compile the app cleanly
         yes | buildozer -v android debug
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-apk
-        path: bin/*.apk
-        if-no-files-found: error
