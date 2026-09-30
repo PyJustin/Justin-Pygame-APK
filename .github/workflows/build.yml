@@ -1,4 +1,3 @@
-
 name: Build Android App with Buildozer
 
 on:
@@ -81,8 +80,7 @@ jobs:
         # 7. Pull the pure-ctypes Pymunk version directly into your folder
         pip install --target=. pymunk==5.7.0 --no-deps
 
-        # 8. FIX: Patch Pymunk's loading sequence to stop importing the problematic '_chipmunk_cffi.py' layout.
-        # This routes execution cleanly over its built-in ctypes backend engine instead!
+        # 8. FIX: Patch Pymunk's loading sequence to stop importing the problematic CFFI hooks globally
         if [ -f "pymunk/__init__.py" ]; then
           echo "Patching Pymunk initialization architecture to run cleanly via ctypes..."
           sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
@@ -90,7 +88,15 @@ jobs:
           sed -i 's|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\ncp = _c_abi.lib|g' pymunk/__init__.py
         fi
 
-        # 9. Direct Cross-Compilation and comprehensive binary seeding
+        # 9. FIX: Neutralise the interior optional 'import cffi' line inside the ctypes mapping layer.
+        # This completely stops the runtime environment from searching for the missing module!
+        if [ -f "pymunk/_chipmunk_cffi_abi.py" ]; then
+          echo "Neutralising secondary hidden CFFI imports inside ABI backend layouts..."
+          sed -i 's|import cffi|# import cffi|g' pymunk/_chipmunk_cffi_abi.py
+          sed -i 's|ffi = cffi.FFI()|ffi = None|g' pymunk/_chipmunk_cffi_abi.py
+        fi
+
+        # 10. Direct Cross-Compilation and comprehensive binary seeding
         NDK_CLANG=$(find ~/.buildozer/ -name "aarch64-linux-android31-clang" -type f | head -n 1)
         if [ -z "$NDK_CLANG" ]; then
           NDK_CLANG=$(find ~/.buildozer/ -name "clang" -type f -path "*aarch64*" | head -n 1)
@@ -114,7 +120,7 @@ jobs:
           echo "Native Android ARM64 pure-ctypes physics binaries successfully mapped!"
         fi
 
-        # 10. Compile the app cleanly
+        # 11. Compile the app cleanly
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
