@@ -35,7 +35,6 @@ jobs:
 
     - name: Patch buildozer.spec and Compile Natively
       run: |
-        # Force the script to stop instantly on any inner compiler errors
         set -e
 
         rm -rf bin/
@@ -43,8 +42,7 @@ jobs:
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/
 
         if [ -f "buildozer.spec" ]; then
-          # 1. FIX: Return requirements strictly back to your known working baseline.
-          # Completely removing cffi and pycparser from the build array avoids the NDK compilation crashes!
+          # 1. Keep requirements set strictly to your verified baseline framework
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
@@ -80,10 +78,10 @@ jobs:
         # 6. Bootstrap Buildozer to download and unpack the Android SDK & NDK environments natively
         yes | buildozer android p4a -- --help || true
 
-        # 7. FIX: Download and extract the stable, pure-ctypes Pymunk version directly into your folder
+        # 7. Pull the pure-ctypes Pymunk version directly into your folder
         pip install --target=. pymunk==5.7.0 --no-deps
 
-        # 8. FIX: Direct Cross-Compilation of the Chipmunk2D library binaries using Buildozer's embedded NDK compiler
+        # 8. FIX: Direct Cross-Compilation and comprehensive binary seeding!
         NDK_CLANG=$(find ~/.buildozer/ -name "aarch64-linux-android31-clang" -type f | head -n 1)
         if [ -z "$NDK_CLANG" ]; then
           NDK_CLANG=$(find ~/.buildozer/ -name "clang" -type f -path "*aarch64*" | head -n 1)
@@ -99,12 +97,19 @@ jobs:
             -Iimport -Ipymunk/chipmunk_src/include \
             -o pymunk/libchipmunk.so -lm
             
-          # Pymunk 5.x tracks the shared object binary via libchipmunk64.so on 64-bit systems
+          # FIX: Seed the compiled shared object into every name variant 
+          # that Pymunk 5.x tracks on modern mobile processors
           cp pymunk/libchipmunk.so pymunk/libchipmunk64.so
-          echo "Native Android ARM64 physics binaries successfully compiled and injected into your app assets!"
+          cp pymunk/libchipmunk.so pymunk/chipmunk.so
+          
+          # Also place it inside the root execution tree space for asset loading safety
+          cp pymunk/libchipmunk.so ./libchipmunk.so
+          cp pymunk/libchipmunk.so ./libchipmunk64.so
+          
+          echo "Comprehensive Android ARM64 pure-ctypes physics binaries successfully mapped!"
         fi
 
-        # 9. Compile the app cleanly (this will now generate the actual .apk file)
+        # 9. Compile the app cleanly
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
