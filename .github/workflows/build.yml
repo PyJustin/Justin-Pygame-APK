@@ -81,7 +81,16 @@ jobs:
         # 7. Pull the pure-ctypes Pymunk version directly into your folder
         pip install --target=. pymunk==5.7.0 --no-deps
 
-        # 8. FIX: Direct Cross-Compilation and comprehensive binary seeding!
+        # 8. FIX: Patch Pymunk's loading sequence to stop importing the problematic '_chipmunk_cffi.py' layout.
+        # This routes execution cleanly over its built-in ctypes backend engine instead!
+        if [ -f "pymunk/__init__.py" ]; then
+          echo "Patching Pymunk initialization architecture to run cleanly via ctypes..."
+          sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
+          sed -i 's|chipmunk_cff = _chipmunk_cffi.ffi|# chipmunk_cff = _chipmunk_cffi.ffi|g' pymunk/__init__.py
+          sed -i 's|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\ncp = _c_abi.lib|g' pymunk/__init__.py
+        fi
+
+        # 9. Direct Cross-Compilation and comprehensive binary seeding
         NDK_CLANG=$(find ~/.buildozer/ -name "aarch64-linux-android31-clang" -type f | head -n 1)
         if [ -z "$NDK_CLANG" ]; then
           NDK_CLANG=$(find ~/.buildozer/ -name "clang" -type f -path "*aarch64*" | head -n 1)
@@ -97,19 +106,15 @@ jobs:
             -Iimport -Ipymunk/chipmunk_src/include \
             -o pymunk/libchipmunk.so -lm
             
-          # FIX: Seed the compiled shared object into every name variant 
-          # that Pymunk 5.x tracks on modern mobile processors
+          # Seed the compiled shared object into every name variant that Pymunk tracks
           cp pymunk/libchipmunk.so pymunk/libchipmunk64.so
           cp pymunk/libchipmunk.so pymunk/chipmunk.so
-          
-          # Also place it inside the root execution tree space for asset loading safety
           cp pymunk/libchipmunk.so ./libchipmunk.so
           cp pymunk/libchipmunk.so ./libchipmunk64.so
-          
-          echo "Comprehensive Android ARM64 pure-ctypes physics binaries successfully mapped!"
+          echo "Native Android ARM64 pure-ctypes physics binaries successfully mapped!"
         fi
 
-        # 9. Compile the app cleanly
+        # 10. Compile the app cleanly
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
