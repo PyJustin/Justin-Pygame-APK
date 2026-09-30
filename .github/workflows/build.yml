@@ -34,8 +34,6 @@ jobs:
 
     - name: Patch buildozer.spec and Compile Natively
       run: |
-        set -e
-
         rm -rf bin/
         rm -rf ~/.cache/pip/*
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/
@@ -88,12 +86,14 @@ jobs:
           sed -i 's|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\ncp = _c_abi.lib|g' pymunk/__init__.py
         fi
 
-        # 9. FIX: Create dummy local placeholder modules for cffi and pycparser.
-        # This completely tricks the device on launch into thinking they are fully present,
-        # stopping any ModuleNotFoundError from crashing your game initialization loop!
-        mkdir -p cffi pycparser
-        echo "class FFI(object): pass" > cffi/__init__.py
-        echo "" > pycparser/__init__.py
+        # 9. FIX: Hard-patch the internal optional CFFI statements inside the ABI layout.
+        # This completely strips out the 'import cffi' string layout, preventing it from 
+        # throwing a ModuleNotFoundError on the device without needing fake folders!
+        if [ -f "pymunk/_chipmunk_cffi_abi.py" ]; then
+          echo "Hard-patching secondary CFFI dependencies inside ABI layouts..."
+          sed -i 's|import cffi|pass|g' pymunk/_chipmunk_cffi_abi.py
+          sed -i 's|ffi = cffi.FFI()|ffi = None|g' pymunk/_chipmunk_cffi_abi.py
+        fi
 
         # 10. Direct Cross-Compilation and comprehensive binary seeding
         NDK_CLANG=$(find ~/.buildozer/ -name "aarch64-linux-android31-clang" -type f | head -n 1)
@@ -122,3 +122,17 @@ jobs:
         # 11. Compile the app cleanly
         yes | buildozer -v android debug
 
+        # 12. FIX: Hard-verify the .apk file generation layout string inside the pipeline environment.
+        # This forces the GitHub Action step to show a red error instantly if the APK was missed.
+        ls -la bin/
+        if [ ! -f bin/*.apk ] && [ ! -f bin/*.aab ]; then
+          echo "ERROR: Buildozer completed but no APK package was generated inside the bin/ directory!"
+          exit 1
+        fi
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: bin/*.apk
+        if-no-files-found: error
