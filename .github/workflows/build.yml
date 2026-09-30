@@ -32,55 +32,27 @@ jobs:
         pip install --upgrade pip setuptools wheel
         pip install buildozer cython
 
-    - name: Patch buildozer.spec and Inject Runtime Bootstrap
+    - name: Patch buildozer.spec and Compile Natively
       run: |
         rm -rf bin/
         rm -rf ~/.cache/pip/*
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/
 
-        # 1. FIX: Inject the automated runtime loader step using single-line echo streams.
-        # This fixes the YAML syntax crash completely while ensuring your game mounts Pymunk safely at launch.
-        if [ -f "main.py" ]; then
-          echo "Injecting native runtime bootstrapper into main.py..."
-          echo "import sys, os, shutil" > main.py.tmp
-          echo "p_dir = os.path.dirname(os.path.abspath(__file__))" >> main.py.tmp
-          echo "r_pkgs = os.path.join(p_dir, '_runtime_pkgs')" >> main.py.tmp
-          echo "sys.path.insert(0, r_pkgs)" >> main.py.tmp
-          echo "try:" >> main.py.tmp
-          echo "    import pymunk" >> main.py.tmp
-          echo "except ImportError:" >> main.py.tmp
-          echo "    os.makedirs(r_pkgs, exist_ok=True)" >> main.py.tmp
-          echo "    import urllib.request, tarfile" >> main.py.tmp
-          echo "    try:" >> main.py.tmp
-          echo "        for p in ['pycparser-2.21-py2.py3-none-any.whl', 'pymunk-6.10.0.tar.gz']:" >> main.py.tmp
-          echo "            u = f'https://pythonhosted.org{p}' if 'tar' in p else f'https://pythonhosted.org{p}'" >> main.py.tmp
-          echo "            dst = os.path.join(r_pkgs, p)" >> main.py.tmp
-          echo "            urllib.request.urlretrieve(u, dst)" >> main.py.tmp
-          echo "            if p.endswith('tar.gz'):" >> main.py.tmp
-          echo "                with tarfile.open(dst, 'r:gz') as t: t.extractall(path=r_pkgs)" >> main.py.tmp
-          echo "                shutil.move(os.path.join(r_pkgs, 'pymunk-6.10.0', 'pymunk'), os.path.join(r_pkgs, 'pymunk'))" >> main.py.tmp
-          echo "    except Exception as e: print(e)" >> main.py.tmp
-          
-          # Append your original game code right under the boostrapper engine layout
-          cat main.py >> main.py.tmp
-          mv main.py.tmp main.py
-        fi
-
         if [ -f "buildozer.spec" ]; then
-          # 2. Reset requirements strictly back to your working pygame baseline.
+          # 1. Reset requirements strictly back to your working baseline framework
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
           sed -i 's|^pip_dependencies =.*||g' buildozer.spec
           
-          # 3. Clean up old configuration tokens
+          # 2. Clean up old configuration tokens
           sed -i '/^android.api =/d; /^# android.api =/d' buildozer.spec
           sed -i '/^android.minapi =/d; /^# android.minapi =/d' buildozer.spec
           sed -i '/^android.ndk_api =/d; /^# android.ndk_api =/d' buildozer.spec
           sed -i '/^android.build_tools =/d; /^# android.build_tools =/d' buildozer.spec
           sed -i '/^android.gradle_version =/d; /^# android.gradle_version =/d' buildozer.spec
           
-          # 4. Append proper production packaging parameters
+          # 3. Append proper production packaging parameters
           echo "" >> buildozer.spec
           echo "android.api = 34" >> buildozer.spec
           echo "android.build_tools = 34.0.0" >> buildozer.spec
@@ -89,18 +61,32 @@ jobs:
           echo "android.gradle_version = 8.0" >> buildozer.spec
         fi
 
-        # 5. Route source downloads safely via GitHub mirrors
+        # 4. Route source downloads safely via GitHub mirrors
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
         export P4A_python3_url="https://github.com"
         
-        # 6. Fast-track Java tool environments
+        # 5. Fast-track Java tool environments
         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
         export PATH=$JAVA_HOME/bin:$PATH
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
-        # 7. Compile the app cleanly
+        # 6. Bootstrap Buildozer to unpack the base application tree structures
+        yes | buildozer android p4a -- --help || true
+
+        # 7. FIX: Inject pure dependencies right into your root source tree
+        pip install --target=. pycparser cffi==1.15.1
+
+        # 8. FIX: Fetch the pre-compiled Android ARM64 native binary library version of Pymunk
+        # This extracts the actual mobile C-extensions (_chipmunk_cffi.so) straight into your package assets!
+        pip download --only-binary=:all: --platform=android_24_aarch64 --implementation=cp --python-version=3.10 --abi=cp310 pymunk==6.10.0
+        
+        # Unzip the downloaded binary wheel directly over your project source folder
+        unzip -q pymunk-6.10.0-cp310-cp310-android_24_aarch64.whl -d .
+        rm -f pymunk-6.10.0-cp310-cp310-android_24_aarch64.whl
+
+        # 9. Compile the app cleanly
         yes | buildozer -v android debug
 
     - name: Upload APK artifact
