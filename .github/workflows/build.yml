@@ -78,16 +78,18 @@ jobs:
         # 7. Pull the pure-ctypes Pymunk version directly into your folder
         pip install --target=. pymunk==5.7.0 --no-deps
 
-        # 8. FIX: Patch Pymunk's initialization loading sequence to redirect over the standard ctypes ABI path
-        # and explicitly define '_chipmunk_cffi' as an alias pointing to the working ABI layout to satisfy line 79!
+        # 8. FIX: Direct target script patch to explicitly invoke standard Python ctypes.CDLL
+        # to mount the cross-compiled mobile .so file. This links all internal Chipmunk2D attributes instantly!
         if [ -f "pymunk/__init__.py" ]; then
-          echo "Patching Pymunk initialization architecture to run cleanly via ctypes..."
+          echo "Patching Pymunk initialization architecture to natively load the compiled ARM64 .so binary via ctypes..."
           sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
           sed -i 's|chipmunk_cff = _chipmunk_cffi.ffi|# chipmunk_cff = _chipmunk_cffi.ffi|g' pymunk/__init__.py
-          sed -i 's|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\n_chipmunk_cffi = _c_abi\ncp = _c_abi.lib|g' pymunk/__init__.py
+          
+          # Inject full native ctypes loading parameters dynamically targeting our compiled shared object binary!
+          sed -i "s|cp = _chipmunk_cffi.lib|import ctypes, os\nfrom . import _chipmunk_cffi_abi as _c_abi\nso_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libchipmunk.so')\n_c_dll = ctypes.CDLL(so_path)\n_chipmunk_cffi = _c_abi\n_c_abi.lib = _c_dll\ncp = _c_dll|g" pymunk/__init__.py
         fi
 
-        # 9. Standalone mock cffi.py script in the project root directory
+        # 9. Standalone mock cffi.py script in the project root directory to block parsing lookups
         echo "Creating standalone structural mock module cffi.py..."
         echo "class FFI(object):" > cffi.py
         echo "    def cdef(self, *args, **kwargs): pass" >> cffi.py
