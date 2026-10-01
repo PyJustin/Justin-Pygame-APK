@@ -51,14 +51,17 @@ jobs:
           sed -i '/^android.ndk_api =/d; /^# android.ndk_api =/d' buildozer.spec
           sed -i '/^android.build_tools =/d; /^# android.build_tools =/d' buildozer.spec
           sed -i '/^android.gradle_version =/d; /^# android.gradle_version =/d' buildozer.spec
+          sed -i '/^source.include_exts =/d; /^# source.include_exts =/d' buildozer.spec
           
           # 3. Append proper production packaging parameters
+          # FIX: Explicitly forcing 'so' inclusion tells Buildozer to pack the compiled binary extensions natively!
           echo "" >> buildozer.spec
           echo "android.api = 34" >> buildozer.spec
           echo "android.build_tools = 34.0.0" >> buildozer.spec
           echo "android.minapi = 24" >> buildozer.spec
           echo "android.ndk_api = 24" >> buildozer.spec
           echo "android.gradle_version = 8.0" >> buildozer.spec
+          echo "source.include_exts = py,png,jpg,so,ttf" >> buildozer.spec
         fi
 
         # 4. Route source downloads safely via GitHub mirrors
@@ -79,14 +82,14 @@ jobs:
         pip install --target=. pymunk==5.7.0 --no-deps
 
         # 8. FIX: Direct target script patch to explicitly invoke standard Python ctypes.CDLL
-        # to mount the cross-compiled mobile .so file. This links all internal Chipmunk2D attributes instantly!
+        # to mount the cross-compiled mobile .so file straight from the core root directory path!
         if [ -f "pymunk/__init__.py" ]; then
           echo "Patching Pymunk initialization architecture to natively load the compiled ARM64 .so binary via ctypes..."
           sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
           sed -i 's|chipmunk_cff = _chipmunk_cffi.ffi|# chipmunk_cff = _chipmunk_cffi.ffi|g' pymunk/__init__.py
           
-          # Inject full native ctypes loading parameters dynamically targeting our compiled shared object binary!
-          sed -i "s|cp = _chipmunk_cffi.lib|import ctypes, os\nfrom . import _chipmunk_cffi_abi as _c_abi\nso_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'libchipmunk.so')\n_c_dll = ctypes.CDLL(so_path)\n_chipmunk_cffi = _c_abi\n_c_abi.lib = _c_dll\ncp = _c_dll|g" pymunk/__init__.py
+          # Inject full native ctypes loading parameters dynamically targeting the compiled shared object binary sitting in the root space!
+          sed -i "s|cp = _chipmunk_cffi.lib|import ctypes, os\nfrom . import _chipmunk_cffi_abi as _c_abi\nso_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'libchipmunk.so')\n_c_dll = ctypes.CDLL(so_path)\n_chipmunk_cffi = _c_abi\n_c_abi.lib = _c_dll\ncp = _c_dll|g" pymunk/__init__.py
         fi
 
         # 9. Standalone mock cffi.py script in the project root directory to block parsing lookups
@@ -106,18 +109,19 @@ jobs:
         
         if [ -f "$NDK_CLANG" ] && [ -d "pymunk/chipmunk_src" ]; then
           echo "Cross-compiling native Chipmunk core layout binaries for ARM64..."
+          # FIX: Compile directly into your root execution tree so Buildozer's packer catches it!
           $NDK_CLANG $CFLAGS -shared \
             pymunk/chipmunk_src/*.c \
             pymunk/chipmunk_src/constraints/*.c \
             -Iimport -Ipymunk/chipmunk_src/include \
-            -o pymunk/libchipmunk.so -lm
+            -o ./libchipmunk.so -lm
             
-          # Seed the compiled shared object into every name variant that Pymunk tracks
-          cp pymunk/libchipmunk.so pymunk/libchipmunk64.so
-          cp pymunk/libchipmunk.so pymunk/chipmunk.so
-          cp pymunk/libchipmunk.so ./libchipmunk.so
-          cp pymunk/libchipmunk.so ./libchipmunk64.so
-          echo "Native Android ARM64 pure-ctypes physics binaries successfully mapped!"
+          # Copy duplicate mapping linkages so local references handle either name variant cleanly
+          cp ./libchipmunk.so ./libchipmunk64.so
+          cp ./libchipmunk.so ./chipmunk.so
+          cp ./libchipmunk.so pymunk/libchipmunk.so
+          cp ./libchipmunk.so pymunk/libchipmunk64.so
+          echo "Native Android ARM64 pure-ctypes physics binaries successfully mapped into application roots!"
         fi
 
         # 11. Compile the app cleanly
