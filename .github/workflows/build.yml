@@ -36,7 +36,7 @@ jobs:
       run: |
         rm -rf bin/
         rm -rf ~/.cache/pip/*
-        rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/ cffi.py
+        rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/ cffi.py libs/
 
         if [ -f "buildozer.spec" ]; then
           # 1. Keep requirements set strictly to your verified baseline framework
@@ -80,15 +80,14 @@ jobs:
         # 7. Pull the pure-ctypes Pymunk version directly into your folder
         pip install --target=. pymunk==5.7.0 --no-deps
 
-        # 8. FIX: Direct target script patch to invoke standard Python ctypes.CDLL without path strings!
-        # This tells the mobile OS to fetch 'libchipmunk.so' right from Android's system library folder.
+        # 8. FIX: Instruct ctypes to read libchipmunk.so from the direct local private directory space
         if [ -f "pymunk/__init__.py" ]; then
           echo "Patching Pymunk initialization architecture to natively load the compiled ARM64 .so binary..."
           sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
           sed -i 's|chipmunk_cff = _chipmunk_cffi.ffi|# chipmunk_cff = _chipmunk_cffi.ffi|g' pymunk/__init__.py
           
-          # Inject full native ctypes loading parameters dynamically targeting the system linker library path!
-          sed -i "s|cp = _chipmunk_cffi.lib|import ctypes\nfrom . import _chipmunk_cffi_abi as _c_abi\n_c_dll = ctypes.CDLL('libchipmunk.so')\n_chipmunk_cffi = _c_abi\n_c_abi.lib = _c_dll\ncp = _c_dll|g" pymunk/__init__.py
+          # Force loader to look locally in the private app workspace directory 
+          sed -i "s|cp = _chipmunk_cffi.lib|import ctypes, os\nfrom . import _chipmunk_cffi_abi as _c_abi\nso_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'libchipmunk.so')\nif not os.path.exists(so_path): so_path = 'libchipmunk.so'\ntry: _c_dll = ctypes.CDLL(so_path)\nexcept Exception: _c_dll = ctypes.CDLL('libchipmunk.so')\n_chipmunk_cffi = _c_abi\n_c_abi.lib = _c_dll\ncp = _c_dll|g" pymunk/__init__.py
         fi
 
         # 9. Standalone mock cffi.py script in the project root directory to block parsing lookups
@@ -119,7 +118,11 @@ jobs:
           cp ./libchipmunk.so ./chipmunk.so
           cp ./libchipmunk.so pymunk/libchipmunk.so
           cp ./libchipmunk.so pymunk/libchipmunk64.so
-          echo "Native Android ARM64 pure-ctypes physics binaries successfully mapped into application roots!"
+          
+          # FIX: Seed directly inside the hardware native directory paths!
+          mkdir -p libs/arm64-v8a
+          cp ./libchipmunk.so libs/arm64-v8a/libchipmunk.so
+          echo "Native Android ARM64 pure-ctypes physics binaries successfully mapped into hardware structures!"
         fi
 
         # 11. Compile the app cleanly
