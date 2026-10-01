@@ -79,16 +79,15 @@ jobs:
         pip install --target=. pymunk==5.7.0 --no-deps
 
         # 8. FIX: Patch Pymunk's initialization loading sequence to redirect over the standard ctypes ABI path
+        # and explicitly define '_chipmunk_cffi' as an alias pointing to the working ABI layout to satisfy line 79!
         if [ -f "pymunk/__init__.py" ]; then
           echo "Patching Pymunk initialization architecture to run cleanly via ctypes..."
           sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
           sed -i 's|chipmunk_cff = _chipmunk_cffi.ffi|# chipmunk_cff = _chipmunk_cffi.ffi|g' pymunk/__init__.py
-          sed -i 's|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\ncp = _c_abi.lib|g' pymunk/__init__.py
+          sed -i 's|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\n_chipmunk_cffi = _c_abi\ncp = _c_abi.lib|g' pymunk/__init__.py
         fi
 
-        # 9. FIX: Generate a standalone mock cffi.py script in the project root directory.
-        # This globally resolves both the ModuleNotFoundError and NameErrors inside all sub-modules
-        # without modifying internal source files or risking line mismatch errors!
+        # 9. Standalone mock cffi.py script in the project root directory
         echo "Creating standalone structural mock module cffi.py..."
         echo "class FFI(object):" > cffi.py
         echo "    def cdef(self, *args, **kwargs): pass" >> cffi.py
