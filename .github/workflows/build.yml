@@ -80,22 +80,19 @@ jobs:
         # 7. Pull the pure-ctypes Pymunk version directly into your folder
         pip install --target=. pymunk==5.7.0 --no-deps
         
-        # 8. FIX: Patch the module initialization sequence to route variables directly to the
-        # built-in pure Python '_chipmunk_cffi_abi.py' structures.
+        # 8. Patch the module initialization sequence to route variables directly to the ABI structures
         if [ -f "pymunk/__init__.py" ]; then
           echo "Patching Pymunk initialization architecture to link variables directly to the ABI class layouts..."
           sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
           sed -i 's|chipmunk_cff = _chipmunk_cffi.ffi|# chipmunk_cff = _chipmunk_cffi.ffi|g' pymunk/__init__.py
-          
-          # This maps all attribute calls directly onto the valid, pre-defined ABI data fields
           sed -i "s|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\n_chipmunk_cffi = _c_abi\nchipmunk_cff = _c_abi\ncp = _c_abi|g" pymunk/__init__.py
         fi
 
-        # 9. FIX: Neutralize the internal 'import cffi' lines hidden inside the ABI layout module.
-        # This completely strips out the check, allowing the pure Python architecture to initialize.
+        # 9. FIX: Direct target line patch to force line 1465 to evaluate as a harmless statement
+        # This acts as an absolute blanket block, overriding any hidden trailing comment tags!
         if [ -f "pymunk/_chipmunk_cffi_abi.py" ]; then
-          echo "Wiping optional runtime CFFI structures inside ABI layout scripts..."
-          sed -i 's|import cffi|pass|g' pymunk/_chipmunk_cffi_abi.py
+          echo "Hard-patching secondary CFFI dependencies inside ABI layouts..."
+          sed -i '1465s|.*|pass|' pymunk/_chipmunk_cffi_abi.py
           sed -i 's|ffi = cffi.FFI()|ffi = None|g' pymunk/_chipmunk_cffi_abi.py
         fi
 
@@ -115,4 +112,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-
