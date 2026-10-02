@@ -1,4 +1,4 @@
-    # 1. Clean out the directory and ensure the target subfolders exist
+ # 1. Clean out the directory and ensure the target subfolders exist
 mkdir -p .github/workflows
 rm -f .github/workflows/build.yml
 
