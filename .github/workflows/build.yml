@@ -1,3 +1,37 @@
+    name: Build Android App with Buildozer
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout Game Code
+      uses: actions/checkout@v4
+
+    - name: Set up System Dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y git zip unzip autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libgdbm-dev libssl-dev libffi-dev cmake gettext \
+          libltdl-dev apksigner ccache openjdk-17-jdk
+
+    - name: Set up Python Runtime
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Python Build Dependencies
+      run: |
+        pip install --upgrade pip setuptools wheel
+        pip install buildozer cython
+
     - name: Patch buildozer.spec and Compile Natively
       run: |
         # DEEP CLEAN: Wipe previous build logs, local work spaces, and deep system caches
@@ -80,3 +114,10 @@
           echo "ERROR: Buildozer completed but no APK package was generated inside the bin/ directory!"
           exit 1
         fi
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk
+        path: bin/*.apk
+        if-no-files-found: error
