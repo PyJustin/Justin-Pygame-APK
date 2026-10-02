@@ -1,4 +1,10 @@
-    name: Build Android App with Buildozer
+    # 1. Clean out the directory and ensure the target subfolders exist
+mkdir -p .github/workflows
+rm -f .github/workflows/build.yml
+
+# 2. Re-create a clean file using a standardized layout
+cat << 'EOF' > .github/workflows/build.yml
+name: Build Android App with Buildozer
 
 on:
   push:
@@ -34,7 +40,6 @@ jobs:
 
     - name: Patch buildozer.spec and Compile Natively
       run: |
-        # DEEP CLEAN: Wipe previous build logs, local work spaces, and deep system caches
         echo "Executing Buildozer Deep Clean Routine..."
         if command -v buildozer &> /dev/null; then
           buildozer android clean || true
@@ -46,13 +51,11 @@ jobs:
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/ cffi.py libs/
 
         if [ -f "buildozer.spec" ]; then
-          # 1. Keep requirements set strictly to your verified baseline framework
           sed -i 's|^requirements = .*|requirements = python3==3.10.12,hostpython3==3.10.12,pygame,pyjnius|g' buildozer.spec
           sed -i 's|^#\?p4a.branch =.*|p4a.branch = master|g' buildozer.spec
           sed -i 's|^p4a.local_recipes =.*||g' buildozer.spec
           sed -i 's|^pip_dependencies =.*||g' buildozer.spec
           
-          # 2. Clean up old configuration tokens
           sed -i '/^android.api =/d; /^# android.api =/d' buildozer.spec
           sed -i '/^android.minapi =/d; /^# android.minapi =/d' buildozer.spec
           sed -i '/^android.ndk_api =/d; /^# android.ndk_api =/d' buildozer.spec
@@ -60,7 +63,6 @@ jobs:
           sed -i '/^android.gradle_version =/d; /^# android.gradle_version =/d' buildozer.spec
           sed -i '/^source.include_exts =/d; /^# source.include_exts =/d' buildozer.spec
           
-          # 3. Append proper production packaging parameters
           echo "" >> buildozer.spec
           echo "android.api = 34" >> buildozer.spec
           echo "android.build_tools = 34.0.0" >> buildozer.spec
@@ -70,48 +72,37 @@ jobs:
           echo "source.include_exts = py,png,jpg,ttf" >> buildozer.spec
         fi
 
-        # FIX: Force python-for-android to auto-upgrade its internal pip packages inside the target Android venv
         export P4A_pip_upgrade="1"
-
-        # 4. Route source downloads safely via GitHub mirrors
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
         export P4A_python3_url="https://github.com"
         
-        # 5. Fast-track Java tool environments
         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
         export PATH=$JAVA_HOME/bin:$PATH
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
-        # 6. Bootstrap Buildozer to download and unpack the Android SDK & NDK environments natively
         yes | buildozer android p4a -- --help || true
-
-        # 7. Pull the pure-ctypes Pymunk version directly into your folder
         pip install --target=. pymunk==5.7.0 --no-deps
         
-        # 8. Patch the module initialization sequence to route variables directly to the ABI structures
         if [ -f "pymunk/__init__.py" ]; then
-          echo "Patching Pymunk initialization architecture to link variables directly to the ABI class layouts..."
+          echo "Patching Pymunk initialization architecture..."
           sed -i 's|from . import _chipmunk_cffi|# from . import _chipmunk_cffi|g' pymunk/__init__.py
           sed -i 's|chipmunk_cff = _chipmunk_cffi.ffi|# chipmunk_cff = _chipmunk_cffi.ffi|g' pymunk/__init__.py
           sed -i "s|cp = _chipmunk_cffi.lib|from . import _chipmunk_cffi_abi as _c_abi\n_chipmunk_cffi = _c_abi\nchipmunk_cff = _c_abi\ncp = _c_abi|g" pymunk/__init__.py
         fi
 
-        # 9. FIX: Direct target line patch to force line 1465 to evaluate as a harmless statement
         if [ -f "pymunk/_chipmunk_cffi_abi.py" ]; then
-          echo "Hard-patching secondary CFFI dependencies inside ABI layouts..."
+          echo "Hard-patching secondary CFFI dependencies..."
           sed -i '1465s|.*|pass|' pymunk/_chipmunk_cffi_abi.py
           sed -i 's|ffi = cffi.FFI()|ffi = None|g' pymunk/_chipmunk_cffi_abi.py
         fi
 
-        # 10. Compile the app cleanly (this will generate the true, working .apk file)
         yes | buildozer -v android debug
 
-        # 11. Hard-verify the .apk file generation layout string inside the pipeline environment
         ls -la bin/
         if [ ! -f bin/*.apk ] && [ ! -f bin/*.aab ]; then
-          echo "ERROR: Buildozer completed but no APK package was generated inside the bin/ directory!"
+          echo "ERROR: No APK package generated!"
           exit 1
         fi
 
@@ -121,3 +112,9 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+EOF
+
+# 3. Push the completely clean file back to GitHub
+git add .github/workflows/build.yml
+git commit -m "Fix workflow hidden unicode characters"
+git push origin main
