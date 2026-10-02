@@ -45,7 +45,7 @@ version = 0.1
 
 # 1. Keep requirements simple.
 # The .yml file will create pygame-ce for Buildozer with:-  p4a.extra_recipes = pygame-ce
-requirements = python3, pygame, pyjnius, hostpython3,cffi, pymunk
+requirements = python3, pygame, pyjnius, hostpython3, libffi, cffi, pymunk
 p4a.extra_recipes = pygame-ce
 
 # Keep this line -  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
