@@ -1,7 +1,7 @@
 [app]
 
 # (str) Title of your game; capital letters and spaces are allowed,  but no special characters.
-title = Hello Justin
+title = Stars
 
 # the name of your game; one word only.
 # only lowercase ASCII characters (a-z) and numbers (0-9).
@@ -457,4 +457,3 @@ warn_on_root = 1
 #    Then, invoke the command line with the "demo" profile:
 #
 #buildozer --profile demo android debug
-
