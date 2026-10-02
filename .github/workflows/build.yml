@@ -1,16 +1,14 @@
- # 1. Clean out the directory and ensure the target subfolders exist
-mkdir -p .github/workflows
-rm -f .github/workflows/build.yml
-
-# 2. Re-create a clean file using a standardized layout
-cat << 'EOF' > .github/workflows/build.yml
 name: Build Android App with Buildozer
 
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
   pull_request:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 jobs:
@@ -112,9 +110,3 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
-EOF
-
-# 3. Push the completely clean file back to GitHub
-git add .github/workflows/build.yml
-git commit -m "Fix workflow hidden unicode characters"
-git push origin main
