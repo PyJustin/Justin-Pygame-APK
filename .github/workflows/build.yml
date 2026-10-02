@@ -1,3 +1,4 @@
+
 name: Build Android App with Buildozer
 
 on:
@@ -33,7 +34,7 @@ jobs:
 
     - name: Install Python Build Dependencies
       run: |
-        pip install --upgrade pip setuptools wheel
+        pip install --upgrade pip==23.3.2 setuptools wheel
         pip install buildozer cython
 
     - name: Patch buildozer.spec and Compile Natively
@@ -70,7 +71,6 @@ jobs:
           echo "source.include_exts = py,png,jpg,ttf" >> buildozer.spec
         fi
 
-        export P4A_pip_upgrade="1"
         export P4A_pygame_version="main"
         export P4A_pygame_url="git+https://github.com"
         export P4A_python3_url="https://github.com"
@@ -80,7 +80,16 @@ jobs:
         export CFLAGS="-Wno-implicit-function-declaration -Wno-error=format-security -fPIC"
         export LDFLAGS="-lm"
 
+        # 1. Initialize the target SDK layout framework structure 
         yes | buildozer android p4a -- --help || true
+        
+        # 2. INTERCEPT CRITICAL ERROR: Generate the isolated environment early and force-downgrade pip internally
+        echo "Injecting target patch into python-for-android compilation pipeline environments..."
+        mkdir -p .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/venv/bin/
+        python3 -m venv .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/venv
+        .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/venv/bin/pip install --upgrade pip==23.3.2 setuptools wheel
+
+        # 3. Handle Pymunk source trees
         pip install --target=. pymunk==5.7.0 --no-deps
         
         if [ -f "pymunk/__init__.py" ]; then
@@ -96,6 +105,7 @@ jobs:
           sed -i 's|ffi = cffi.FFI()|ffi = None|g' pymunk/_chipmunk_cffi_abi.py
         fi
 
+        # 4. Compile the application safely using the pre-patched isolated environment
         yes | buildozer -v android debug
 
         ls -la bin/
@@ -110,3 +120,4 @@ jobs:
         name: android-apk
         path: bin/*.apk
         if-no-files-found: error
+
