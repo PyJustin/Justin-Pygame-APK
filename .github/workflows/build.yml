@@ -34,6 +34,13 @@ jobs:
 
     - name: Patch buildozer.spec and Compile Natively
       run: |
+        # DEEP CLEAN: Wipe previous build logs, local work spaces, and deep system caches
+        echo "Executing Buildozer Deep Clean Routine..."
+        if command -v buildozer &> /dev/null; then
+          buildozer android clean || true
+        fi
+        rm -rf .buildozer/
+        rm -rf ~/.buildozer/
         rm -rf bin/
         rm -rf ~/.cache/pip/*
         rm -rf pymunk/ cffi/ pycparser/ *.egg-info/ p4a-recipes/ cffi.py libs/
@@ -89,7 +96,6 @@ jobs:
         fi
 
         # 9. FIX: Direct target line patch to force line 1465 to evaluate as a harmless statement
-        # This acts as an absolute blanket block, overriding any hidden trailing comment tags!
         if [ -f "pymunk/_chipmunk_cffi_abi.py" ]; then
           echo "Hard-patching secondary CFFI dependencies inside ABI layouts..."
           sed -i '1465s|.*|pass|' pymunk/_chipmunk_cffi_abi.py
