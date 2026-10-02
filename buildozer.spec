@@ -1,3 +1,7 @@
+buildozer android clean
+rm -rf .buildozer/
+rm -rf ~/.buildozer/
+
 [app]
 
 # (str) Title of your game; capital letters and spaces are allowed,  but no special characters.
@@ -45,7 +49,7 @@ version = 0.1
 
 # 1. Keep requirements simple.
 # The .yml file will create pygame-ce for Buildozer with:-  p4a.extra_recipes = pygame-ce
-requirements = python3, pygame, pyjnius, hostpython3, libffi, cffi, pymunk
+requirements = python3, hostpython3, libffi, cffi, pygame, pyjnius, pymunk
 p4a.extra_recipes = pygame-ce
 
 # Keep this line -  Buildozer automatically downloads, compiles, and links the CORRECTt native C/C++ SDL2 binaries.
