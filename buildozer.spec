@@ -43,7 +43,7 @@ version = 0.1
 
 # (list) Application requirements
 
-# 1. Keep requirements simple. 
+# 1. Keep requirements simple.
 # The .yml file will create pygame-ce for Buildozer with:-  p4a.extra_recipes = pygame-ce
 requirements = python3, pygame, pyjnius, hostpython3,cffi, pymunk
 p4a.extra_recipes = pygame-ce
