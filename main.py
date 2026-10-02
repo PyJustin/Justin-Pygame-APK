@@ -1,4 +1,4 @@
-# Now let's try and bring together what we've learned and have a bit of fun
+# Now let's try and bring together what we've learned and have a bit of fun.
 import os
 import sys
 import pygame as pg
