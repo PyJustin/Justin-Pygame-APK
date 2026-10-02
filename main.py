@@ -1,15 +1,24 @@
-
 # Now let's try and bring together what we've learned and have a bit of fun
+import os
+import sys
 import pygame as pg
-import pymunk  
+import pymunk
+import pymunk.pygame_util
 # We're going to need some random numbers
 from random import randrange
+
+# Force Pymunk to use API compilation mode instead of runtime ABI mode - needed for using PYMUNK.
+os.environ["PYMUNK_DISABLE_AUTOMATIC_COMPILATION"] = "1"
+
+# Optional: Add the application's internal library path to runtime paths
+app_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(app_dir)
 
 # 1. Force the audio driver to do nothing, else game will crash when not using audio .
 os.environ["SDL_AUDIODRIVER"] = "dummy"
 
 # 2. Safely initialize everything (including display and freetype for fonts)
-pygame.init()
+pg.init()
 
 pymunk.pygame_util.positive_y_is_up = False # need to tell Pymunk as Y increases, Pygame moves DOWN (else it assumes UP).
 
@@ -75,3 +84,4 @@ while never_gonna_give_you_up:
 
     pg.display.flip()
     clock.tick(FPS)
+
