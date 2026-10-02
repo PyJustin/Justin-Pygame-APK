@@ -4,87 +4,106 @@
 #
 # Author:      badow
 #
-# Created:     17/07/2025
+# Created:     20/09/2025
 # Copyright:   (c) badow 2025
 # Licence:     <your licence>
-#-------------------------------------------------------------------------------------------------------------
-
-import pygame
+#-------------------------------------------------------------------------------
+import  pygame, random, sys
 import pathlib
 import os
 
-# 1. Force the audio driver to do nothing, else game will crash when not using audio .
-os.environ["SDL_AUDIODRIVER"] = "dummy"
-
-# 2. Safely initialize everything (including display and freetype for fonts)
 pygame.init()
-
-pygame.display.set_caption("Hello Justin")  # <<-- will go into 'Title' of the PygBag generated .HTML file.
-
-# import traceback   # for use with "Try" exception capture; uncomment if game not working properly
 
 pathlib.Path(__file__).parent.resolve()  # needed for Android to find the .ttf files.
 path = pathlib.Path(__file__).parent     # needed for Android to find the .ttf files.
-print(f"Script Path: {path}")
-# above prints:-
-# Script Path: C:\DOWNLOADS\Build Android APK with COLAB\Hello   <<-- .ttf custom font file is within "Hello" directory.
-
-# the following dimensions determine Portrait or landscape
-base_width = 1280
-base_height = 1280
-
-# For Android phone use the following for Full Screen:-
-screen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED)
-
-#  For DESKTOP use the following as the modern way of using the GPU and setting the screen size;
-#  . . . but do NOT use for Mobile.
-# screen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED | pygame.DOUBLEBUF, vsync=1)
 
 GOLD = (255, 215, 0)
 RED = (255, 0, 0)
 BLACK = (0, 0, 0)
 
+size = width, height = 960, 540
 
-# to capture the Frames Per Second
+#set up for GPU rendering
+# this really works ! On mobile I was getting maximum FPS = 55 but now getting FPS = 89-90 consistently.
+screen = pygame.display.set_mode(size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+hardware_surface = pygame.Surface(size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+
+win = pygame.display.set_mode(size)
+pygame.display.set_caption('StarField')
+clock = pygame.time.Clock()
+
+font = pygame.font.Font(os.path.abspath(".")+'/Skincake.ttf', 56)   # <<-- for ANDROID & the Python Interpreter.
+
+MY_TIMER_EVENT = pygame.USEREVENT + 0
+pygame.time.set_timer(MY_TIMER_EVENT, 1000)  # triggers every 1000 milliseconds (1 second); this must be outside the game loop.
+
+class Star:
+    def __init__(self):
+        self.x, self.y, self.z = random.randint(-width, width), random.randint(-height, height), random.randint(-width, width)
+
+    def draw(self, win):
+        sx = maps((self.x)/self.z, 0, 1, 0, width)
+        sy = maps((self.y)/self.z, 0, 1, 0, height)
+        r = maps(self.z, 0, width, 6, 0)
+        pygame.draw.circle(win, (255, 255, 255), (int(sx+width/2), int(sy+height/2)), r)
+
+    def update(self, x, y):
+        sz = maps((x+y), 0, width+height, 1, 8)
+        self.z -= sz
+        if self.z < 1:
+            self.x, self.y, self.z = random.randint(-width, width), random.randint(-height, height), random.randint(1, width)
+
+
+def maps(num, in_min, in_max, out_min, out_max):
+    return (num - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+
+stars = []
+for i in range(500):
+    s = Star()
+    stars.append(s)
+
 clock = pygame.time.Clock()
 
 while True:
 
-  # pygame.time.delay(300)
 
-  # try:     # all code in this block will be checked for an exception in processing
-             # . . . the exception will be printed below using "except Exception: " at the end of the program
     for event in pygame.event.get():
 
         if event.type == pygame.QUIT:
+             pygame.quit()
+             sys.exit()
+        """
+        elif event.type == MY_TIMER_EVENT:
+             font = pygame.font.Font('C:\PYGAME\My Games\Hello\Skincake.ttf', 38) #  <<-- for Nuitka & Python Interpreter.
+             hardware_surface = font.render(f'FPS =  {round(clock.get_fps(), 1)}', True, (RED)) # "1" means one decimal place
+             #hardware_surface = font.render(f'ONE second has passed),)', True, (RED)) # "1" means one decimal place
+             screen.blit(hardware_surface, (10, 150))  # copies the surface object to the screen.
+             pygame.display.update()
+             print("1 second has passed!")
 
-            # deactivates the pygame library
-            pygame.quit()
+        NOTE: *** The above 'elif' works to render the display every second on the screen.
+        BUT the trouble is it just flashes on the screen so momentarily you can hardly see it !
+        This is because INSIDE the 'elif' the code is NOT executed each game loop but only once a second has passed and then only fleetingly,
+        because it then goes round the rest of the Game Loop whereby the screen is cleared.
+        So better to display the Frames Per Second within the Game Loop where it gets executed constantly for a steady display !
+        """
 
-            # quit the program.
-            quit()
 
-    clock.tick(250)  # set the FPS rate; this must be here within the "while True" loop.
+    win.fill((0, 0, 0))
 
-    font = pygame.font.Font(os.path.abspath(".")+'/Lemon Days.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
-    #font = pygame.font.Font('C:\PYGAME\My Games\Hello\Lemon Days.ttf', 36)  #  <<-- for Nuitka & Python Interpreter.
-    hardware_surface = font.render('Welcome to Pygame, Justin !', True, (GOLD))
-    screen.blit(hardware_surface, (10, 100))
-    #screen.blit(text_surface, (width // 2 - text_surface.get_width() // 2, 100)) # 100 is the Y co-ordinate
+    for s in stars:
+        s.update(*pygame.mouse.get_pos())
+        s.draw(win)
 
-    font = pygame.font.Font(os.path.abspath(".")+'/Skincake.ttf', 85)   # <<-- for ANDROID & the Python Interpreter.
+    clock.tick(120) # DO NOT SET THE CLOCK TOO FAST else the displayed FPS increments too fast to read the numbers !!!
+
+    # the following is the correct place to display the FPS, as it gets executed every cycle of the Game Loop and so stays on the screen!
     #font = pygame.font.Font('C:\PYGAME\My Games\Hello\Skincake.ttf', 38) #  <<-- for Nuitka & Python Interpreter.
+    font = pygame.font.Font(os.path.abspath(".")+'/Skincake.ttf', 56)   # <<-- for ANDROID & the Python Interpreter.
     hardware_surface = font.render(f'FPS =  {round(clock.get_fps(), 1)}', True, (RED)) # "1" means one decimal place
-    screen.blit(hardware_surface, (10, 250))  # copies the surface object to the screen.
+    screen.blit(hardware_surface, (10, 30))  # copies the surface object to the screen.
 
-    # Draws the surface object to the screen.
-    pygame.display.update()
-    screen.fill((BLACK))    # without fill the screen the FPS display over eachother so looking fuzzy.
+    pygame.display.flip()
 
 
 
-  # except Exception:   # exceptions/error messages will be captuted for all code within the Try block and prined here . . .
-  #        print(traceback.format_exc())
-                                        # . . . the messages are displayed only from the Nuitka .exe (python interpreter does NOT).
-  # . . . to stop the messages scrolling, just click & hold the yellow bar of the exxception window display. . .
-  # . . . the exception messages are displayed only from the Nuitka .exe (python interpreter does NOT).
