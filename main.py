@@ -1,4 +1,3 @@
-
 #-------------------------------------------------------------------------------
 # Name:        module1
 # Purpose:
@@ -18,7 +17,9 @@ pygame.init()
 pathlib.Path(__file__).parent.resolve()  # needed for Android to find the .ttf files.
 path = pathlib.Path(__file__).parent     # needed for Android to find the .ttf files.
 
-GOLD = (255, 215, 0)# the following dimensions determine Portrait or landscape
+GOLD = (255, 215, 0)
+RED = (255, 0, 0)
+BLACK = (0, 0, 0)
 
 base_width = 1280
 base_height = 1280
@@ -26,9 +27,6 @@ size = width, height = 1280, 1280
 
 # For Android phone use the following for Full Screen:-
 screen = pygame.display.set_mode((base_width, base_height), pygame.FULLSCREEN | pygame.SCALED)
-
-RED = (255, 0, 0)
-BLACK = (0, 0, 0)
 
 #set up for GPU rendering
 # this really works ! On mobile I was getting maximum FPS = 55 but now getting FPS = 89-90 consistently.
@@ -111,6 +109,7 @@ while True:
     screen.blit(hardware_surface, (10, 30))  # copies the surface object to the screen.
 
     pygame.display.flip()
+
 
 
 
